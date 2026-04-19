@@ -1,0 +1,21 @@
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  lint:
+    uses: TeamFlowProject/cicd-templates/.github/workflows/python-lint-ci.yaml@main
+  
+  unit-tests:
+    uses: TeamFlowProject/cicd-templates/.github/workflows/python-test-ci.yaml@main
+    needs: lint
+
+  integration-tests:
+    uses: TeamFlowProject/cicd-templates/.github/workflows/python-integration-test-ci.yaml@main
+    needs: lint
