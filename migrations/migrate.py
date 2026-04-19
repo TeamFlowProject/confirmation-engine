@@ -36,4 +36,3 @@ def drop(database_dsn: str) -> None:
     migrations = _read_sql_migrations()
     with backend.lock():
         backend.rollback_migrations(backend.to_rollback(migrations))
-

@@ -1,4 +1,3 @@
-import uuid
 from src.domain.repositories.team_application import TeamApplicationRepository
 from src.domain.repositories.track import TrackRepository
 
