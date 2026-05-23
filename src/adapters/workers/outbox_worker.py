@@ -13,15 +13,11 @@ logger = logging.getLogger(__name__)
 class OutboxWorker:
     def __init__(
         self,
-        db_pool: AsyncConnectionPool,
         producer: KafkaProducerProtocol,
-        topic: str,
-        poll_interval_seconds: float = 1.0,
     ) -> None:
-        self._db_pool = db_pool
+        self._db_pool = AsyncConnectionPool()
         self._producer = producer
-        self._topic = topic
-        self._poll_interval = poll_interval_seconds
+        self._poll_interval = 0.2
         self._running = False
         self._task: Optional[asyncio.Task] = None
 
@@ -103,7 +99,7 @@ class OutboxWorker:
         ).encode()
 
         try:
-            await self._producer.send(topic=self._topic, key=key, value=value)
+            await self._producer.send(topic=event_type, key=key, value=value)
         except Exception as e:
             logger.error("Failed to send event %s: %s", event_id, e, exc_info=True)
             async with self._db_pool.connection() as conn:
