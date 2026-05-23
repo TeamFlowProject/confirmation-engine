@@ -16,7 +16,7 @@ class OutboxWorker:
         db_pool: AsyncConnectionPool,
         producer: KafkaProducerProtocol,
         topic: str,
-        poll_interval_seconds: float = 1.0
+        poll_interval_seconds: float = 1.0,
     ) -> None:
         self._db_pool = db_pool
         self._producer = producer
@@ -66,10 +66,32 @@ class OutboxWorker:
             )
             events = await rows.fetchall()
 
-        for event_id, aggregate_type, aggregate_id, event_type, payload, idempotency_key in events:
-            await self._send_event(event_id, aggregate_type, aggregate_id, event_type, payload, idempotency_key)
+        for (
+            event_id,
+            aggregate_type,
+            aggregate_id,
+            event_type,
+            payload,
+            idempotency_key,
+        ) in events:
+            await self._send_event(
+                event_id,
+                aggregate_type,
+                aggregate_id,
+                event_type,
+                payload,
+                idempotency_key,
+            )
 
-    async def _send_event(self, event_id, aggregate_type, aggregate_id, event_type, payload, idempotency_key) -> None:
+    async def _send_event(
+        self,
+        event_id,
+        aggregate_type,
+        aggregate_id,
+        event_type,
+        payload,
+        idempotency_key,
+    ) -> None:
         key = idempotency_key.encode() if idempotency_key else str(event_id).encode()
         value = json.dumps(
             {
