@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 OFFSET_ERRORS = (ApplicationNotFoundError, TrackNotFoundError)
 
 
-class KafkaConsumer:
+class KafkaConsumerController:
     def __init__(self, service: ConfirmationServiceProtocol, config: Settings) -> None:
         self._service = service
         self._consumer = AIOKafkaConsumer(
@@ -32,8 +32,8 @@ class KafkaConsumer:
         """
         Строит TeamApplication из payload.
 
-        created → name присутствует, сервис сохраняет объект как есть.
-        submitted/updated → name тоже должен быть в payload, но сервис
+        created - name присутствует, сервис сохраняет объект как есть.
+        submitted/updated - name тоже должен быть в payload, но сервис
           достаёт существующий объект из БД и использует переданный только
           для application.id и application.track_id (логика смены трека).
         """
