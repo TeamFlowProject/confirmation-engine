@@ -1,5 +1,5 @@
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.controller.kafka.consumer import KafkaConsumerController, TOPICS
@@ -54,16 +54,18 @@ def service() -> AsyncMock:
 
 
 @pytest.fixture
-def controller(service: AsyncMock) -> KafkaConsumerController:
-    config = MagicMock()
-    config.kafka_bootstrap = "localhost:9092"
-    config.kafka_group_id = "test-group"
+def consumer() -> AsyncMock:
+    # Создаём мок consumer-а с методом commit
+    mock = AsyncMock()
+    mock.commit = AsyncMock()
+    return mock
 
-    with patch("src.controller.kafka.consumer.AIOKafkaConsumer") as mock_consumer_cls:
-        mock_consumer_cls.return_value = AsyncMock()  
-        ctrl = KafkaConsumerController(service=service, config=config)
 
-    return ctrl
+@pytest.fixture
+def controller(service: AsyncMock, consumer: AsyncMock) -> KafkaConsumerController:
+    # KafkaConsumerController принимает consumer и service напрямую,
+    # никакого config или AIOKafkaConsumer патчить не нужно
+    return KafkaConsumerController(сonsumer=consumer, service=service)
 
 
 def make_msg(topic: str, value: dict) -> MagicMock:
@@ -77,19 +79,27 @@ def make_msg(topic: str, value: dict) -> MagicMock:
 
 class TestTopicDtoMap:
     def test_all_topics_covered(self):
-        from src.controller.kafka.topics import TOPICS
-        for topic in TOPICS:
+        # Проверяем конкретный набор ожидаемых топиков
+        expected_topics = {
+            "event_service.team.created",
+            "event_service.team.submitted",
+            "event_service.team.updated",
+            "event_service.team.member.kicked",
+            "event_service.team.member.left",
+            "event_service.invitation.accepted",
+            "event_service.join_request.accepted",
+        }
+        for topic in expected_topics:
             assert topic in TOPICS, f"Topic {topic!r} missing from TOPICS"
 
     def test_dto_types(self):
         assert TOPICS["event_service.team.created"] is TeamCreatedDTO
         assert TOPICS["event_service.team.submitted"] is TeamSubmittedDTO
         assert TOPICS["event_service.team.updated"] is TeamUpdatedDTO
-        assert TOPICS["event_service.member.kicked"] is MemberKickedDTO
-        assert TOPICS["event_service.member.left"] is MemberLeftDTO
+        assert TOPICS["event_service.team.member.kicked"] is MemberKickedDTO
+        assert TOPICS["event_service.team.member.left"] is MemberLeftDTO
         assert TOPICS["event_service.invitation.accepted"] is MemberJoinedDTO
         assert TOPICS["event_service.join_request.accepted"] is MemberJoinedDTO
-
 
 
 class TestHandleTeamCreated:
@@ -173,60 +183,66 @@ class TestHandleMemberJoined:
 
 class TestProcess:
     @pytest.mark.asyncio
-    async def test_unknown_topic_commits_and_warns(self, controller, caplog):
+    async def test_unknown_topic_commits_and_warns(self, controller, consumer, caplog):
         msg = make_msg("unknown.topic", make_team_data())
 
         with caplog.at_level("WARNING"):
             await controller._process(msg)
 
-        controller._consumer.commit.assert_called_once()
+        consumer.commit.assert_called_once()
         assert "Unhandled topic" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_offset_error_commits_and_warns(self, controller, service, caplog):
-        service.create_team.side_effect = ApplicationNotFoundError(application_id=uuid.uuid4())
+    async def test_offset_error_commits_and_warns(
+        self, controller, consumer, service, caplog
+    ):
+        service.create_team.side_effect = ApplicationNotFoundError(
+            application_id=uuid.uuid4()
+        )
         msg = make_msg("event_service.team.created", make_team_data())
 
         with caplog.at_level("WARNING"):
             await controller._process(msg)
 
-        controller._consumer.commit.assert_called_once()
+        consumer.commit.assert_called_once()
         assert "Skipping message" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_track_not_found_commits_and_warns(self, controller, service, caplog):
+    async def test_track_not_found_commits_and_warns(
+        self, controller, consumer, service, caplog
+    ):
         service.create_team.side_effect = TrackNotFoundError(track_id=uuid.uuid4())
         msg = make_msg("event_service.team.created", make_team_data())
 
         with caplog.at_level("WARNING"):
             await controller._process(msg)
 
-        controller._consumer.commit.assert_called_once()
+        consumer.commit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_unexpected_exception_logs_and_does_not_commit(self, controller, service, caplog):
+    async def test_unexpected_exception_logs_and_does_not_commit(
+        self, controller, consumer, service, caplog
+    ):
         service.create_team.side_effect = RuntimeError("boom")
         msg = make_msg("event_service.team.created", make_team_data())
 
         with caplog.at_level("ERROR"):
             await controller._process(msg)
 
-        controller._consumer.commit.assert_not_called()
+        consumer.commit.assert_not_called()
         assert "Failed to process" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_invalid_payload_logs_and_does_not_commit(self, controller, caplog):
+    async def test_invalid_payload_logs_and_does_not_commit(
+        self, controller, consumer, caplog
+    ):
         msg = make_msg("event_service.team.created", {"bad": "data"})
 
         with caplog.at_level("ERROR"):
             await controller._process(msg)
 
-        controller._consumer.commit.assert_not_called()
+        consumer.commit.assert_not_called()
 
-
-# ---------------------------------------------------------------------------
-# _process → handler integration (по одному на каждый топик)
-# ---------------------------------------------------------------------------
 
 class TestProcessDispatchIntegration:
     @pytest.mark.asyncio
@@ -249,13 +265,13 @@ class TestProcessDispatchIntegration:
 
     @pytest.mark.asyncio
     async def test_member_kicked(self, controller, service):
-        msg = make_msg("event_service.member.kicked", make_member_team_data())
+        msg = make_msg("event_service.team.member.kicked", make_member_team_data())
         await controller._process(msg)
         service.delete_member.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_member_left(self, controller, service):
-        msg = make_msg("event_service.member.left", make_member_team_data())
+        msg = make_msg("event_service.team.member.left", make_member_team_data())
         await controller._process(msg)
         service.delete_member.assert_called_once()
 

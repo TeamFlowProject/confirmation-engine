@@ -1,6 +1,4 @@
-import json
 import logging
-import uuid
 
 from aiokafka import AIOKafkaConsumer
 
@@ -18,7 +16,7 @@ from src.service.errors import ApplicationNotFoundError, TrackNotFoundError
 from src.domain.aggregates.team_application import TeamApplication
 from src.domain.entities.member import Member
 from src.controller.kafka.topics import TOPICS
-from src.config import Settings
+
 
 logger = logging.getLogger(__name__)
 
@@ -26,19 +24,16 @@ OFFSET_ERRORS = (ApplicationNotFoundError, TrackNotFoundError)
 
 
 class KafkaConsumerController:
-    def __init__(self, service: ConfirmationServiceProtocol, config: Settings) -> None:
+    def __init__(
+        self, сonsumer: AIOKafkaConsumer, service: ConfirmationServiceProtocol
+    ) -> None:
         self._service = service
-        self._consumer = AIOKafkaConsumer(
-            *TOPICS.keys(),
-            bootstrap_servers=config.kafka_bootstrap,
-            group_id=config.kafka_group_id,
-            value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-            auto_offset_reset="earliest",
-            enable_auto_commit=False,
-        )
+        self._consumer = сonsumer
 
     @staticmethod
-    def _build_application(dto: TeamCreatedDTO | TeamSubmittedDTO | TeamUpdatedDTO) -> TeamApplication:
+    def _build_application(
+        dto: TeamCreatedDTO | TeamSubmittedDTO | TeamUpdatedDTO,
+    ) -> TeamApplication:
         """
         Строит TeamApplication из payload.
 
@@ -86,7 +81,7 @@ class KafkaConsumerController:
                 await self.handle_team_submitted(dto)
             case "event_service.team.updated":
                 await self.handle_team_updated(dto)
-            case "event_service.member.kicked" | "event_service.member.left":
+            case "event_service.team.member.kicked" | "event_service.team.member.left":
                 await self.handle_member_removed(dto)
             case (
                 "event_service.invitation.accepted"
