@@ -8,18 +8,20 @@ from src.domain.value_objects.confirmation_rule import (
 )
 
 
-def serialize(rule: ConfirmationRule) -> str:
+def serialize(rule: ConfirmationRule) -> dict:
     if isinstance(rule, RoleConfirmationRule):
-        return json.dumps(
-            {"take_into_account_role_count": rule.take_into_account_role_count}
-        )
+        return {
+            "rule_type": rule.rule_type.value,
+            "params": {"take_into_account_role_count": rule.take_into_account_role_count}
+        }
     if isinstance(rule, TeamSizeConfirmationRule):
-        return json.dumps(
-            {
+        return {
+            "rule_type": rule.rule_type.value,
+            "params": {
                 "max_team_size": rule.max_team_size,
                 "min_team_size": rule.min_team_size,
             }
-        )
+        }
     raise ValueError(f"Unknown rule type: {type(rule)}")
 
 

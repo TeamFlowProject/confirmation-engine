@@ -25,59 +25,60 @@ class TeamApplicationPostgresRepository:
                     now = datetime.now(timezone.utc)
                     await conn.execute(
                         TeamApplicationQueries.INSERT_TEAM_APPLICATION,
-                        (
-                            application.id,
-                            application.track_id,
-                            application.name,
-                            application.status.value,
-                            application.rejection_reason,
-                            application.grace_deadline,
-                            now,
-                            now,
-                        ),
+                        {
+                            "id": application.id,
+                            "track_id": application.track_id,
+                            "name": application.name,
+                            "status": application.status.value,
+                            "rejection_reason": application.rejection_reason,
+                            "grace_deadline": application.grace_deadline,
+                            "created_at": now,
+                            "updated_at": now,
+                        },
                     )
 
                     for member in application.members:
                         await conn.execute(
                             MembersQueries.INSERT_MEMBER,
-                            (
-                                member.id,
-                                member.name,
-                                member.surname,
-                                member.patronymic,
-                                member.role_id,
-                                now,
-                            ),
+                            {
+                                "id": member.id,
+                                "name": member.name,
+                                "surname": member.surname,
+                                "patronymic": member.patronymic,
+                                "role_id": member.role_id,
+                                "created_at": now,
+                            },
                         )
 
                     await conn.execute(
-                        MembersQueries.DELETE_OLD_MEMBER_CONNECTION, (application.id,)
+                        MembersQueries.DELETE_OLD_MEMBER_CONNECTION,
+                        {"application_id": application.id},
                     )
 
                     for member in application.members:
                         await conn.execute(
                             MembersQueries.INSERT_MEMBER_CONNECTION,
-                            (
-                                application.id,
-                                member.id,
-                            ),
+                            {
+                                "application_id": application.id,
+                                "member_id": member.id,
+                            },
                         )
 
                     events = application.collect_events()
                     for event in events:
                         idempotency_key = (
-                            f"TeamApplication:{application.id}:{type(event).__name__}"
+                            f"TeamApplication:{application.id}:{type(event).__name__}:{now.isoformat()}"
                         )
                         await conn.execute(
                             OutboxQueries.INSERT_OUTBOX_EVENT,
-                            (
-                                uuid.uuid4(),
-                                "TeamApplication",
-                                str(application.id),
-                                type(event).__name__,
-                                json.dumps(event.__dict__),
-                                idempotency_key,
-                            ),
+                            {
+                                "id": uuid.uuid4(),
+                                "aggregate_type": "TeamApplication",
+                                "aggregate_id": str(application.id),
+                                "event_type": type(event).__name__,
+                                "payload": json.dumps(event.__dict__),
+                                "idempotency_key": idempotency_key,
+                            },
                         )
 
                 except psycopg_error.UniqueViolation:
@@ -95,14 +96,16 @@ class TeamApplicationPostgresRepository:
                 try:
                     application_result = await conn.execute(
                         TeamApplicationQueries.SELECT_TEAM_APPLICATION,
-                        (application_id,),
+                        {"id": application_id},
                     )
                     application_row = await application_result.fetchone()
                     if not application_row:
-                        raise adapter_error.TeamApplicationNotFoundError(application_id)
+                        raise adapter_error.TeamApplicationNotFoundError(
+                            application_id)
 
                     members_result = await conn.execute(
-                        MembersQueries.SELECT_MEMBERS, (application_id,)
+                        MembersQueries.SELECT_MEMBERS,
+                        {"application_id": application_id},
                     )
                     members_rows = await members_result.fetchall()
                     members = [
@@ -135,7 +138,7 @@ class TeamApplicationPostgresRepository:
                 return await self._fetch_applications(
                     conn,
                     TeamApplicationQueries.SELECT_TEAM_APPLICATION_BY_TRACK_ID,
-                    (track_id,),
+                    {"track_id": track_id},
                 )
 
     async def get_confirmed_by_track_id(
@@ -146,7 +149,7 @@ class TeamApplicationPostgresRepository:
                 return await self._fetch_applications(
                     conn,
                     TeamApplicationQueries.SELECT_CONFIRMED_BY_TRACK_ID,
-                    (track_id,),
+                    {"track_id": track_id},
                 )
 
     async def count_confirmed_by_track(self, track_id: uuid.UUID) -> int:
@@ -154,7 +157,7 @@ class TeamApplicationPostgresRepository:
             async with conn.transaction():
                 result = await conn.execute(
                     TeamApplicationQueries.COUNT_CONFIRMED_APPLICATIONS_BY_ID,
-                    (track_id,),
+                    {"track_id": track_id},
                 )
                 row = await result.fetchone()
                 return int(row[0]) if row else 0
@@ -172,14 +175,16 @@ class TeamApplicationPostgresRepository:
         async with self._db_pool.connection() as conn:
             async with conn.transaction():
                 application_result = await conn.execute(
-                    TeamApplicationQueries.SELECT_NEXT_TEAM_APPLICATION, (track_id,)
+                    TeamApplicationQueries.SELECT_NEXT_TEAM_APPLICATION,
+                    {"track_id": track_id},
                 )
                 application_row = await application_result.fetchone()
                 if not application_row:
                     return None
 
                 members_result = await conn.execute(
-                    MembersQueries.SELECT_MEMBERS, (application_row[0],)
+                    MembersQueries.SELECT_MEMBERS,
+                    {"application_id": application_row[0]},
                 )
                 members_rows = await members_result.fetchall()
                 members = [
@@ -204,8 +209,9 @@ class TeamApplicationPostgresRepository:
                 )
 
     async def _fetch_applications(
-        self, conn, query: str, params: tuple = ()
+        self, conn, query: str, params: dict | None = None
     ) -> list[TeamApplication]:
+        params = params or {}
         applications_result = await conn.execute(query, params)
         applications_rows = await applications_result.fetchall()
 
@@ -215,7 +221,8 @@ class TeamApplicationPostgresRepository:
         application_ids = [row[0] for row in applications_rows]
 
         members_result = await conn.execute(
-            MembersQueries.SELECT_MEMBERS_BY_APPLICATION_IDS, (application_ids,)
+            MembersQueries.SELECT_MEMBERS_BY_APPLICATION_IDS,
+            {"application_ids": application_ids},
         )
         members_rows = await members_result.fetchall()
 

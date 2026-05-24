@@ -6,16 +6,18 @@ class TrackQueries:
             max_team_count,
             auto_confirm,
             grace_period_hours,
+            confirmation_rules,
             created_at,
             updated_at
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        VALUES (%(id)s, %(name)s, %(max_team_count)s, %(auto_confirm)s, %(grace_period_hours)s, %(confirmation_rules)s::jsonb, %(created_at)s, %(updated_at)s)
         ON CONFLICT (id) DO UPDATE SET
-            name = EXCLUDED.name,
-            max_team_count = EXCLUDED.max_team_count,
-            auto_confirm = EXCLUDED.auto_confirm,
+            name               = EXCLUDED.name,
+            max_team_count     = EXCLUDED.max_team_count,
+            auto_confirm       = EXCLUDED.auto_confirm,
             grace_period_hours = EXCLUDED.grace_period_hours,
-            updated_at = now()
+            confirmation_rules = EXCLUDED.confirmation_rules,
+            updated_at         = now()
         """
 
     SELECT_TRACK = """
@@ -23,36 +25,10 @@ class TrackQueries:
             t.name,
             t.max_team_count,
             t.auto_confirm,
-            t.grace_period_hours
+            t.grace_period_hours,
+            t.confirmation_rules
         FROM tracks t
-        WHERE id = %s
-        """
-
-
-class ConfirmationRulesQueries:
-    INSERT_CONFIRMATION_RULE = """
-        INSERT INTO track_confirmation_rules (
-            id,
-            track_id,
-            rule_type,
-            params,
-            sort_order
-        )
-        VALUES (%s, %s, %s, %s, %s)
-        """
-
-    SELECT_RULES = """
-        SELECT
-            r.rule_type,
-            r.params
-        FROM track_confirmation_rules r
-        WHERE r.track_id = %s
-        ORDER BY sort_order ASC
-        """
-
-    DELETE_CONFIRMATION_RULES = """
-        DELETE FROM track_confirmation_rules
-        WHERE track_id = %s
+        WHERE t.id = %(id)s
         """
 
 
@@ -64,7 +40,7 @@ class RolesQueries:
             count,
             created_at
         )
-        VALUES (%s, %s, %s, %s)
+        VALUES (%(id)s, %(name)s, %(count)s, %(created_at)s)
         ON CONFLICT (id) DO NOTHING
         """
 
@@ -73,7 +49,7 @@ class RolesQueries:
             track_id,
             role_id
         )
-        VALUES (%s, %s)
+        VALUES (%(track_id)s, %(role_id)s)
         ON CONFLICT (track_id, role_id) DO NOTHING
         """
 
@@ -81,10 +57,10 @@ class RolesQueries:
         SELECT r.id, r.name, r.count
         FROM roles r
         JOIN track_roles tr ON tr.role_id = r.id
-        WHERE tr.track_id = %s
+        WHERE tr.track_id = %(track_id)s
         """
 
     DELETE_TRACK_ROLES = """
         DELETE FROM track_roles
-        WHERE track_id = %s
+        WHERE track_id = %(track_id)s
         """

@@ -6,19 +6,9 @@ CREATE TABLE IF NOT EXISTS
         max_team_count INT NOT NULL,
         auto_confirm BOOL NOT NULL DEFAULT FALSE,
         grace_period_hours INT NOT NULL DEFAULT 24,
+        confirmation_rules JSONB NOT NULL DEFAULT '[]'::jsonb,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-CREATE TABLE IF NOT EXISTS
-    track_confirmation_rules (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
-        track_id UUID NOT NULL REFERENCES tracks (id) ON DELETE CASCADE,
-        rule_type VARCHAR(50) NOT NULL,
-        params JSONB NOT NULL,
-        sort_order INT NOT NULL DEFAULT 0
-    );
-
 CREATE INDEX IF NOT EXISTS idx_tracks_auto_confirm ON tracks (auto_confirm);
-
-CREATE INDEX IF NOT EXISTS idx_track_confirmation_rules_track ON track_confirmation_rules (track_id);

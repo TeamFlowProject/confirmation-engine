@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime, timezone
 from psycopg import errors as psycopg_errors
@@ -5,12 +6,7 @@ from psycopg_pool import AsyncConnectionPool
 from src.adapters.serializers.confirmation_rule_serializer import serialize, deserialize
 from src.domain.aggregates.track import Track
 from src.domain.entities.role import Role
-from src.adapters.repositories.track.postgres.queries import (
-    TrackQueries,
-    ConfirmationRulesQueries,
-    RolesQueries,
-)
-
+from src.adapters.repositories.track.postgres.queries import TrackQueries, RolesQueries
 import src.adapters.repositories.errors as adapter_error
 
 
@@ -25,96 +21,63 @@ class TrackPostgresRepository:
                     now = datetime.now(timezone.utc)
                     await conn.execute(
                         TrackQueries.INSERT_TRACK,
-                        (
-                            track.id,
-                            track.name,
-                            track.max_team_count,
-                            track.auto_confirm,
-                            track.grace_period_hours,
-                            now,
-                            now,
-                        ),
+                        {
+                            "id": track.id,
+                            "name": track.name,
+                            "max_team_count": track.max_team_count,
+                            "auto_confirm": track.auto_confirm,
+                            "grace_period_hours": track.grace_period_hours,
+                            "confirmation_rules": json.dumps(
+                                [serialize(r)
+                                 for r in track.confirmation_rules]
+                            ),
+                            "created_at": now,
+                            "updated_at": now,
+                        },
                     )
 
                     await conn.execute(
-                        ConfirmationRulesQueries.DELETE_CONFIRMATION_RULES, (track.id,)
+                        RolesQueries.DELETE_TRACK_ROLES, {"track_id": track.id}
                     )
-
-                    for sort_order, rule in enumerate(track.confirmation_rules):
-                        await conn.execute(
-                            ConfirmationRulesQueries.INSERT_CONFIRMATION_RULE,
-                            (
-                                uuid.uuid4(),
-                                track.id,
-                                rule.rule_type.value,
-                                serialize(rule),
-                                sort_order,
-                            ),
-                        )
-
-                    await conn.execute(RolesQueries.DELETE_TRACK_ROLES, (track.id,))
 
                     for role in track.roles:
                         await conn.execute(
                             RolesQueries.INSERT_ROLE,
-                            (
-                                role.id,
-                                role.name,
-                                role.count,
-                                now,
-                            ),
+                            {
+                                "id": role.id,
+                                "name": role.name,
+                                "count": role.count,
+                                "created_at": now,
+                            },
                         )
 
                     for role in track.roles:
                         await conn.execute(
                             RolesQueries.INSERT_ROLE_CONNECTION,
-                            (
-                                track.id,
-                                role.id,
-                            ),
+                            {"track_id": track.id, "role_id": role.id},
                         )
 
                 except psycopg_errors.UniqueViolation:
                     raise adapter_error.TrackAlreadyExistsError(track.id)
                 except psycopg_errors.ForeignKeyViolation:
-                    raise adapter_error.TrackRelatedEntityNotFoundError(track.id)
+                    raise adapter_error.TrackRelatedEntityNotFoundError(
+                        track.id)
 
     async def get_by_id(self, track_id: uuid.UUID) -> Track:
         async with self._db_pool.connection() as conn:
             async with conn.transaction():
                 track_result = await conn.execute(
-                    TrackQueries.SELECT_TRACK, (track_id,)
+                    TrackQueries.SELECT_TRACK, {"id": track_id}
                 )
-
                 track_row = await track_result.fetchone()
 
                 if not track_row:
                     raise adapter_error.TrackNotFoundError(track_id)
 
-                rules_result = await conn.execute(
-                    ConfirmationRulesQueries.SELECT_RULES, (track_id,)
-                )
-
-                rules_row = await rules_result.fetchall()
-
-                confirmation_rules = []
-                for row in rules_row:
-                    confirmation_rules.append(
-                        deserialize(
-                            rule_type=row[0],
-                            params=row[1],
-                        )
-                    )
-
                 roles_result = await conn.execute(
-                    RolesQueries.SELECT_ROLES, (track_id,)
+                    RolesQueries.SELECT_ROLES, {"track_id": track_id}
                 )
-
-                roles_row = await roles_result.fetchall()
-
-                roles = []
-                for row in roles_row:
-                    roles.append(Role(id=row[0], name=row[1], count=row[2]))
+                roles_rows = await roles_result.fetchall()
 
                 return Track(
                     id=track_id,
@@ -122,6 +85,12 @@ class TrackPostgresRepository:
                     max_team_count=track_row[1],
                     auto_confirm=track_row[2],
                     grace_period_hours=track_row[3],
-                    roles=roles,
-                    confirmation_rules=confirmation_rules,
+                    roles=[
+                        Role(id=row[0], name=row[1], count=row[2])
+                        for row in roles_rows
+                    ],
+                    confirmation_rules=[
+                        deserialize(r["rule_type"], r["params"])
+                        for r in track_row[4]
+                    ],
                 )
