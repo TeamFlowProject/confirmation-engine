@@ -6,7 +6,15 @@ from src.domain.entities.member import Member
 from src.domain.repositories.team_application import TeamApplicationRepository
 from src.domain.repositories.track import TrackRepository
 from src.domain.value_objects.team_status import TeamStatus
-from src.service.errors import ApplicationNotFoundError, TrackNotFoundError
+from src.service.errors import (
+    ApplicationNotFoundError,
+    ApplicationAlreadyExistsError,
+    ApplicationRelatedEntityNotFoundError,
+    TrackNotFoundError,
+    TrackAlreadyExistsError,
+    TrackRelatedEntityNotFoundError,
+)
+import src.adapters.repositories.errors as adapter_errors
 
 
 class ConfirmationService:
@@ -21,16 +29,24 @@ class ConfirmationService:
     async def _get_application_or_raise(
         self, application_id: uuid.UUID
     ) -> TeamApplication:
-        application = await self._team_application_repository.get_by_id(application_id)
-        if application is None:
-            raise ApplicationNotFoundError(application_id)
-        return application
+        try:
+            application = await self._team_application_repository.get_by_id(
+                application_id
+            )
+            if application is None:
+                raise ApplicationNotFoundError(application_id)
+            return application
+        except adapter_errors.TeamApplicationNotFoundError as exc:
+            raise ApplicationNotFoundError(application_id) from exc
 
     async def _get_track_or_raise(self, track_id: uuid.UUID) -> Track:
-        track = await self._track_repository.get_by_id(track_id)
-        if track is None:
-            raise TrackNotFoundError(track_id)
-        return track
+        try:
+            track = await self._track_repository.get_by_id(track_id)
+            if track is None:
+                raise TrackNotFoundError(track_id)
+            return track
+        except adapter_errors.TrackNotFoundError as exc:
+            raise TrackNotFoundError(track_id) from exc
 
     async def _track_is_full(self, track: Track) -> bool:
         confirmed = await self._team_application_repository.count_confirmed_by_track(
@@ -43,11 +59,21 @@ class ConfirmationService:
     ) -> None:
         is_full = await self._track_is_full(track)
         application.validate(track, is_full)
-        await self._team_application_repository.save(application)
+        try:
+            await self._team_application_repository.save(application)
+        except adapter_errors.TeamApplicationAlreadyExistsError as exc:
+            raise ApplicationAlreadyExistsError(application.id) from exc
+        except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
+            raise ApplicationRelatedEntityNotFoundError(application.id) from exc
 
     async def create_team(self, application: TeamApplication) -> None:
         application.status = TeamStatus.NONE
-        await self._team_application_repository.save(application)
+        try:
+            await self._team_application_repository.save(application)
+        except adapter_errors.TeamApplicationAlreadyExistsError as exc:
+            raise ApplicationAlreadyExistsError(application.id) from exc
+        except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
+            raise ApplicationRelatedEntityNotFoundError(application.id) from exc
 
     async def submit_team(self, application: TeamApplication) -> None:
         existing = await self._get_application_or_raise(application.id)
@@ -85,17 +111,32 @@ class ConfirmationService:
         await self._validate_and_save(application, track)
 
     async def create_rule(self, track: Track) -> None:
-        await self._track_repository.save(track)
+        try:
+            await self._track_repository.save(track)
+        except adapter_errors.TrackAlreadyExistsError as exc:
+            raise TrackAlreadyExistsError(track.id) from exc
+        except adapter_errors.TrackRelatedEntityNotFoundError as exc:
+            raise TrackRelatedEntityNotFoundError(track.id) from exc
 
     async def confirm_team(self, application_id: uuid.UUID) -> None:
         application = await self._get_application_or_raise(application_id)
         application.confirm()
-        await self._team_application_repository.save(application)
+        try:
+            await self._team_application_repository.save(application)
+        except adapter_errors.TeamApplicationAlreadyExistsError as exc:
+            raise ApplicationAlreadyExistsError(application.id) from exc
+        except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
+            raise ApplicationRelatedEntityNotFoundError(application.id) from exc
 
     async def reject_team(self, application_id: uuid.UUID, reason: str) -> None:
         application = await self._get_application_or_raise(application_id)
         application.reject(reason)
-        await self._team_application_repository.save(application)
+        try:
+            await self._team_application_repository.save(application)
+        except adapter_errors.TeamApplicationAlreadyExistsError as exc:
+            raise ApplicationAlreadyExistsError(application.id) from exc
+        except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
+            raise ApplicationRelatedEntityNotFoundError(application.id) from exc
 
     async def get_application(self, track_id: uuid.UUID) -> list[TeamApplication]:
         return await self._team_application_repository.get_by_track_id(track_id)
@@ -120,7 +161,12 @@ class ConfirmationService:
         if application is None:
             return
         application.confirm()
-        await self._team_application_repository.save(application)
+        try:
+            await self._team_application_repository.save(application)
+        except adapter_errors.TeamApplicationAlreadyExistsError as exc:
+            raise ApplicationAlreadyExistsError(application.id) from exc
+        except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
+            raise ApplicationRelatedEntityNotFoundError(application.id) from exc
 
     async def expire_grace_periods(self) -> None:
         """Called by infrastructure (scheduler/outbox worker) to reject
@@ -128,4 +174,9 @@ class ConfirmationService:
         expired = await self._team_application_repository.get_expired_invalid()
         for application in expired:
             application.expire_grace_period()
-            await self._team_application_repository.save(application)
+            try:
+                await self._team_application_repository.save(application)
+            except adapter_errors.TeamApplicationAlreadyExistsError as exc:
+                raise ApplicationAlreadyExistsError(application.id) from exc
+            except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
+                raise ApplicationRelatedEntityNotFoundError(application.id) from exc
