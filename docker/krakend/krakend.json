@@ -1,0 +1,30 @@
+{
+  "version": 3,
+  "name": "Confirmation Engine API Gateway",
+  "timeout": "30s",
+  "cache_ttl": "300s",
+  "port": 8080,
+  "extra_config": {
+    "telemetry/logging": {
+      "level": "INFO",
+      "prefix": "[KRAKEND]",
+      "syslog": false,
+      "stdout": true
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint": "/{path}",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [
+        {
+          "url_pattern": "/{path}",
+          "encoding": "no-op",
+          "host": ["http://confirmation-engine:8001"],
+          "wildcard": true
+        }
+      ]
+    }
+  ]
+}

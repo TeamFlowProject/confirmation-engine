@@ -4,7 +4,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", populate_by_name=True
+        env_file=(".env_event_service", ".env"),
+        env_file_encoding="utf-8",
+        populate_by_name=True,
     )
 
     database_dsn: str = Field(
@@ -20,7 +22,9 @@ class Settings(BaseSettings):
         default="event-commands", alias="KAFKA_TOPIC_COMMANDS"
     )
     kafka_topic_events: str = Field(default="event-events", alias="KAFKA_TOPIC_EVENTS")
-    kafka_group_id: str = Field(default="event-service", alias="KAFKA_GROUP_ID")
+    kafka_group_id: str = Field(
+        default="confirmation-engine", alias="KAFKA_GROUP_ID"
+    )
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
 

@@ -17,7 +17,6 @@ COPY --from=builder /app/.venv ./.venv
 
 COPY src/ ./src/
 COPY migrations/ ./migrations/
-COPY src/main.py ./
 
 ENV PATH="/app/.venv/bin:$PATH"
 
