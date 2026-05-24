@@ -47,7 +47,16 @@ make compose-down
 | Confirmation Engine (напрямую) | http://localhost:8002 |
 | Redpanda Console | http://localhost:8080 |
 
-HTTP API через gateway: `http://localhost:8000/rules`, `http://localhost:8000/applications`, …
+HTTP API через gateway (KrakenD):
+
+| Метод | Путь |
+|-------|------|
+| POST | `/rules` |
+| POST | `/applications` |
+| GET | `/track/{track_id}/applications` |
+| GET | `/rule/{track_id}` |
+| GET | `/track/{track_id}/teams` |
+| GET | `/docs`, `/openapi.json`, `/redoc` |
 
 ## Разработка без Docker
 

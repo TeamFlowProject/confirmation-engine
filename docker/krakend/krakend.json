@@ -14,15 +14,116 @@
   },
   "endpoints": [
     {
-      "endpoint": "/{path}",
+      "endpoint": "/rules",
+      "method": "POST",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "url_pattern": "/rules",
+          "encoding": "no-op",
+          "host": ["http://confirmation-engine:8001"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/applications",
+      "method": "POST",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "url_pattern": "/applications",
+          "encoding": "no-op",
+          "host": ["http://confirmation-engine:8001"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/track/{track_id}/applications",
+      "method": "GET",
       "input_headers": ["*"],
       "input_query_strings": ["*"],
       "backend": [
         {
-          "url_pattern": "/{path}",
+          "url_pattern": "/track/{track_id}/applications",
+          "encoding": "no-op",
+          "host": ["http://confirmation-engine:8001"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/rule/{track_id}",
+      "method": "GET",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [
+        {
+          "url_pattern": "/rule/{track_id}",
+          "encoding": "no-op",
+          "host": ["http://confirmation-engine:8001"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/track/{track_id}/teams",
+      "method": "GET",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [
+        {
+          "url_pattern": "/track/{track_id}/teams",
+          "encoding": "no-op",
+          "host": ["http://confirmation-engine:8001"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/docs",
+      "method": "GET",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [
+        {
+          "url_pattern": "/docs",
+          "encoding": "no-op",
+          "host": ["http://confirmation-engine:8001"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/docs/{path}",
+      "method": "GET",
+      "input_headers": ["*"],
+      "input_query_strings": ["*"],
+      "backend": [
+        {
+          "url_pattern": "/docs/{path}",
           "encoding": "no-op",
           "host": ["http://confirmation-engine:8001"],
           "wildcard": true
+        }
+      ]
+    },
+    {
+      "endpoint": "/openapi.json",
+      "method": "GET",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "url_pattern": "/openapi.json",
+          "encoding": "no-op",
+          "host": ["http://confirmation-engine:8001"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/redoc",
+      "method": "GET",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "url_pattern": "/redoc",
+          "encoding": "no-op",
+          "host": ["http://confirmation-engine:8001"]
         }
       ]
     }
