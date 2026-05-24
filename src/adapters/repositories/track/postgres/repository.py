@@ -1,5 +1,6 @@
 import uuid
 import json
+from datetime import datetime, timezone
 from psycopg import errors as psycopg_errors
 from psycopg_pool import AsyncConnectionPool
 from src.adapters.serializers.confirmation_rule_serializer import serialize, deserialize
@@ -18,6 +19,7 @@ class TrackPostgresRepository:
         async with self._db_pool.connection() as conn:
             async with conn.transaction():
                 try:
+                    now = datetime.now(timezone.utc)
                     await conn.execute(
                         TrackQueries.INSERT_TRACK,
                         (
@@ -25,7 +27,9 @@ class TrackPostgresRepository:
                             track.name,
                             track.max_team_count,
                             track.auto_confirm,
-                            track.grace_period_hours
+                            track.grace_period_hours,
+                            now,
+                            now,
                         )
                     )
 
@@ -38,6 +42,7 @@ class TrackPostgresRepository:
                                 rule.rule_type.value,
                                 json.dumps(serialize(rule)),
                                 sort_order,
+                                now,
                             )
                         )
 
@@ -48,6 +53,7 @@ class TrackPostgresRepository:
                                 role.id,
                                 role.name,
                                 role.count,
+                                now,
                             )
                         )
 

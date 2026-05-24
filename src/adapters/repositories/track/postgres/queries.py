@@ -6,8 +6,10 @@ class TrackQueries:
             max_team_size,
             auto_confirm,
             grace_period_hours,
+            created_at,
+            updated_at
         )
-        VALUES (%s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
 
     INSERT_CONFIRMATION_RULE = """
@@ -17,17 +19,19 @@ class TrackQueries:
             rule_type,
             params,
             sort_order
+            created_at
         )
-        VALUES (%s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s)
         """
 
     INSERT_ROLE = """
         INSERT INTO roles (
             id,
             name,
-            count
+            count,
+            created_at
         )
-        VALUES (%s, %s, %s)
+        VALUES (%s, %s, %s, %s)
         ON CONFLICT (id) DO NOTHING
         """
 

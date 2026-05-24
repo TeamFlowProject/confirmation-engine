@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS
         name VARCHAR(255) NOT NULL,
         status team_status NOT NULL DEFAULT 'none',
         rejection_reason TEXT,
-        grace_deadline TIMESTAMPTZ
+        grace_deadline TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
 CREATE INDEX IF NOT EXISTS idx_team_applications_track ON team_applications (track_id);

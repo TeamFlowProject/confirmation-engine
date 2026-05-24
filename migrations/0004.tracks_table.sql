@@ -5,7 +5,9 @@ CREATE TABLE IF NOT EXISTS
         name VARCHAR(255) NOT NULL,
         max_team_count INT NOT NULL,
         auto_confirm BOOL NOT NULL DEFAULT FALSE,
-        grace_period_hours INT NOT NULL DEFAULT 24
+        grace_period_hours INT NOT NULL DEFAULT 24,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
 
 CREATE TABLE IF NOT EXISTS
