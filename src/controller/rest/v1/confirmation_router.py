@@ -10,7 +10,14 @@ from src.controller.rest.v1.schemas import (
     TrackResponse,
 )
 from src.domain.errors import InvalidStatusTransitionError
-from src.service.errors import ApplicationNotFoundError, TrackNotFoundError
+from src.service.errors import (
+    ApplicationNotFoundError,
+    ApplicationAlreadyExistsError,
+    ApplicationRelatedEntityNotFoundError,
+    TrackNotFoundError,
+    TrackAlreadyExistsError,
+    TrackRelatedEntityNotFoundError,
+)
 
 
 def create_confirmation_router(service: ConfirmationService) -> APIRouter:
@@ -19,7 +26,16 @@ def create_confirmation_router(service: ConfirmationService) -> APIRouter:
     @router.post("/rules", status_code=status.HTTP_201_CREATED)
     async def create_rule(payload: TrackRequest) -> TrackResponse:
         track = payload.to_domain()
-        await service.create_rule(track)
+        try:
+            await service.create_rule(track)
+        except TrackAlreadyExistsError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+            ) from exc
+        except TrackRelatedEntityNotFoundError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+            ) from exc
         return TrackResponse.from_domain(track)
 
     @router.post("/applications", status_code=status.HTTP_200_OK)
@@ -30,6 +46,13 @@ def create_confirmation_router(service: ConfirmationService) -> APIRouter:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
             ) from exc
+        except (
+            ApplicationAlreadyExistsError,
+            ApplicationRelatedEntityNotFoundError,
+        ) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+            ) from exc
         except InvalidStatusTransitionError as exc:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail=str(exc)
@@ -37,7 +60,12 @@ def create_confirmation_router(service: ConfirmationService) -> APIRouter:
 
     @router.get("/track/{track_id}/applications")
     async def get_applications(track_id: uuid.UUID) -> list[TeamApplicationResponse]:
-        applications = await service.get_application(track_id)
+        try:
+            applications = await service.get_application(track_id)
+        except TrackNotFoundError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+            ) from exc
         return [TeamApplicationResponse.from_domain(a) for a in applications]
 
     @router.get("/rule/{track_id}")
@@ -52,7 +80,12 @@ def create_confirmation_router(service: ConfirmationService) -> APIRouter:
 
     @router.get("/track/{track_id}/teams")
     async def get_confirmed_teams(track_id: uuid.UUID) -> list[TeamApplicationResponse]:
-        applications = await service.get_confirmed_teams_by_track(track_id)
+        try:
+            applications = await service.get_confirmed_teams_by_track(track_id)
+        except TrackNotFoundError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+            ) from exc
         return [TeamApplicationResponse.from_domain(a) for a in applications]
 
     return router
