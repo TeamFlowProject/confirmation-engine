@@ -10,14 +10,16 @@ from src.domain.value_objects.confirmation_rule import (
 
 def serialize(rule: ConfirmationRule) -> str:
     if isinstance(rule, RoleConfirmationRule):
-        return json.dumps({
-            "take_into_account_role_count": rule.take_into_account_role_count
-        })
+        return json.dumps(
+            {"take_into_account_role_count": rule.take_into_account_role_count}
+        )
     if isinstance(rule, TeamSizeConfirmationRule):
-        return json.dumps({
-            "max_team_size": rule.max_team_size,
-            "min_team_size": rule.min_team_size,
-        })
+        return json.dumps(
+            {
+                "max_team_size": rule.max_team_size,
+                "min_team_size": rule.min_team_size,
+            }
+        )
     raise ValueError(f"Unknown rule type: {type(rule)}")
 
 

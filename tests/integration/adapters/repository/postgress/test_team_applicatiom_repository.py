@@ -12,6 +12,7 @@ import src.adapters.repositories.errors as adapter_error
 
 async def _save_role(pool, role_id: uuid.UUID) -> None:
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc)
     async with pool.connection() as conn:
         await conn.execute(
@@ -53,6 +54,7 @@ def _make_application(
 async def _save_track(pool, track_id: uuid.UUID) -> None:
     """Создаёт трек напрямую в БД чтобы FK не упал."""
     from datetime import datetime, timezone
+
     now = datetime.now(timezone.utc)
     async with pool.connection() as conn:
         await conn.execute(
@@ -112,8 +114,7 @@ class TestTeamApplicationRepositorySave:
     ):
         track_id = uuid.uuid4()
         await _save_track(pool, track_id)
-        application = _make_application(
-            track_id=track_id, status=TeamStatus.NONE)
+        application = _make_application(track_id=track_id, status=TeamStatus.NONE)
         try:
             await team_application_repository.save(application)
 
@@ -134,8 +135,7 @@ class TestTeamApplicationRepositorySave:
         await _save_track(pool, track_id)
         await _save_role(pool, role_id)
         old_member = _make_member(role_id)
-        application = _make_application(
-            track_id=track_id, members=[old_member])
+        application = _make_application(track_id=track_id, members=[old_member])
         try:
             await team_application_repository.save(application)
 
@@ -155,8 +155,7 @@ class TestTeamApplicationRepositorySave:
     ):
         track_id = uuid.uuid4()
         await _save_track(pool, track_id)
-        application = _make_application(
-            track_id=track_id, status=TeamStatus.REJECTED)
+        application = _make_application(track_id=track_id, status=TeamStatus.REJECTED)
         application.rejection_reason = "Not enough members"
         try:
             await team_application_repository.save(application)
@@ -257,15 +256,15 @@ class TestTeamApplicationRepositoryGetConfirmedByTrackId:
         track_id = uuid.uuid4()
         await _save_track(pool, track_id)
 
-        confirmed = _make_application(
-            track_id=track_id, status=TeamStatus.CONFIRMED)
-        pending = _make_application(
-            track_id=track_id, status=TeamStatus.SUBMITTED)
+        confirmed = _make_application(track_id=track_id, status=TeamStatus.CONFIRMED)
+        pending = _make_application(track_id=track_id, status=TeamStatus.SUBMITTED)
         try:
             await team_application_repository.save(confirmed)
             await team_application_repository.save(pending)
 
-            result = await team_application_repository.get_confirmed_by_track_id(track_id)
+            result = await team_application_repository.get_confirmed_by_track_id(
+                track_id
+            )
 
             assert len(result) == 1
             assert result[0].id == confirmed.id
@@ -278,11 +277,12 @@ class TestTeamApplicationRepositoryGetConfirmedByTrackId:
     ):
         track_id = uuid.uuid4()
         await _save_track(pool, track_id)
-        application = _make_application(
-            track_id=track_id, status=TeamStatus.SUBMITTED)
+        application = _make_application(track_id=track_id, status=TeamStatus.SUBMITTED)
         try:
             await team_application_repository.save(application)
-            result = await team_application_repository.get_confirmed_by_track_id(track_id)
+            result = await team_application_repository.get_confirmed_by_track_id(
+                track_id
+            )
             assert result == []
         finally:
             await cleanup_db(pool)
@@ -298,12 +298,10 @@ class TestTeamApplicationRepositoryCountConfirmed:
         await _save_track(pool, track_id)
 
         for _ in range(3):
-            app = _make_application(
-                track_id=track_id, status=TeamStatus.CONFIRMED)
+            app = _make_application(track_id=track_id, status=TeamStatus.CONFIRMED)
             await team_application_repository.save(app)
 
-        app_other = _make_application(
-            track_id=track_id, status=TeamStatus.SUBMITTED)
+        app_other = _make_application(track_id=track_id, status=TeamStatus.SUBMITTED)
         await team_application_repository.save(app_other)
         try:
             count = await team_application_repository.count_confirmed_by_track(track_id)
@@ -326,18 +324,13 @@ class TestTeamApplicationRepositoryGetExpiredInvalid:
         track_id = uuid.uuid4()
         await _save_track(pool, track_id)
 
-        expired = _make_application(
-            track_id=track_id, status=TeamStatus.INVALID)
-        expired.grace_deadline = datetime.now(
-            timezone.utc) - timedelta(hours=1)
+        expired = _make_application(track_id=track_id, status=TeamStatus.INVALID)
+        expired.grace_deadline = datetime.now(timezone.utc) - timedelta(hours=1)
 
-        not_expired = _make_application(
-            track_id=track_id, status=TeamStatus.INVALID)
-        not_expired.grace_deadline = datetime.now(
-            timezone.utc) + timedelta(hours=1)
+        not_expired = _make_application(track_id=track_id, status=TeamStatus.INVALID)
+        not_expired.grace_deadline = datetime.now(timezone.utc) + timedelta(hours=1)
 
-        valid_app = _make_application(
-            track_id=track_id, status=TeamStatus.CONFIRMED)
+        valid_app = _make_application(track_id=track_id, status=TeamStatus.CONFIRMED)
         try:
             await team_application_repository.save(expired)
             await team_application_repository.save(not_expired)
@@ -362,15 +355,15 @@ class TestTeamApplicationRepositoryGetNextWaiting:
         track_id = uuid.uuid4()
         await _save_track(pool, track_id)
 
-        first = _make_application(
-            track_id=track_id, status=TeamStatus.VALIDATED)
-        second = _make_application(
-            track_id=track_id, status=TeamStatus.VALIDATED)
+        first = _make_application(track_id=track_id, status=TeamStatus.VALIDATED)
+        second = _make_application(track_id=track_id, status=TeamStatus.VALIDATED)
         try:
             await team_application_repository.save(first)
             await team_application_repository.save(second)
 
-            result = await team_application_repository.get_next_waiting_by_track(track_id)
+            result = await team_application_repository.get_next_waiting_by_track(
+                track_id
+            )
 
             assert result is not None
             assert result.id == first.id
@@ -383,16 +376,19 @@ class TestTeamApplicationRepositoryGetNextWaiting:
     ):
         track_id = uuid.uuid4()
         await _save_track(pool, track_id)
-        application = _make_application(
-            track_id=track_id, status=TeamStatus.SUBMITTED)
+        application = _make_application(track_id=track_id, status=TeamStatus.SUBMITTED)
         try:
             await team_application_repository.save(application)
-            result = await team_application_repository.get_next_waiting_by_track(track_id)
+            result = await team_application_repository.get_next_waiting_by_track(
+                track_id
+            )
             assert result is None
         finally:
             await cleanup_db(pool)
 
     @pytest.mark.asyncio
     async def test_returns_none_for_empty_track(self, team_application_repository):
-        result = await team_application_repository.get_next_waiting_by_track(uuid.uuid4())
+        result = await team_application_repository.get_next_waiting_by_track(
+            uuid.uuid4()
+        )
         assert result is None

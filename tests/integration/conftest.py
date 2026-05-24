@@ -1,4 +1,3 @@
-import uuid
 import psycopg_pool
 import pytest
 import pytest_asyncio
@@ -6,7 +5,9 @@ from testcontainers.postgres import PostgresContainer
 
 from migrations.migrate import up
 from src.adapters.repositories.track.postgres.repository import TrackPostgresRepository
-from src.adapters.repositories.team_application.postgres.repository import TeamApplicationPostgresRepository
+from src.adapters.repositories.team_application.postgres.repository import (
+    TeamApplicationPostgresRepository,
+)
 
 
 @pytest.fixture(scope="session")

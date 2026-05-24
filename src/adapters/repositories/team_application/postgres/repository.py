@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime,  timezone
+from datetime import datetime, timezone
 from psycopg_pool import AsyncConnectionPool
 from psycopg import errors as psycopg_error
 
@@ -34,7 +34,7 @@ class TeamApplicationPostgresRepository:
                             application.grace_deadline,
                             now,
                             now,
-                        )
+                        ),
                     )
 
                     for member in application.members:
@@ -47,12 +47,11 @@ class TeamApplicationPostgresRepository:
                                 member.patronymic,
                                 member.role_id,
                                 now,
-                            )
+                            ),
                         )
 
                     await conn.execute(
-                        MembersQueries.DELETE_OLD_MEMBER_CONNECTION,
-                        (application.id,)
+                        MembersQueries.DELETE_OLD_MEMBER_CONNECTION, (application.id,)
                     )
 
                     for member in application.members:
@@ -61,12 +60,14 @@ class TeamApplicationPostgresRepository:
                             (
                                 application.id,
                                 member.id,
-                            )
+                            ),
                         )
 
                     events = application.collect_events()
                     for event in events:
-                        idempotency_key = f"TeamApplication:{application.id}:{type(event).__name__}"
+                        idempotency_key = (
+                            f"TeamApplication:{application.id}:{type(event).__name__}"
+                        )
                         await conn.execute(
                             OutboxQueries.INSERT_OUTBOX_EVENT,
                             (
@@ -76,33 +77,32 @@ class TeamApplicationPostgresRepository:
                                 type(event).__name__,
                                 json.dumps(event.__dict__),
                                 idempotency_key,
-                            )
+                            ),
                         )
 
                 except psycopg_error.UniqueViolation:
                     raise adapter_error.TeamApplicationAlreadyExistsError(
-                        application.id)
+                        application.id
+                    )
                 except psycopg_error.ForeignKeyViolation:
                     raise adapter_error.TeamApplicationRelatedEntityNotFoundError(
-                        application.id)
+                        application.id
+                    )
 
-    async def get_by_id(
-            self, application_id: uuid.UUID) -> TeamApplication:
+    async def get_by_id(self, application_id: uuid.UUID) -> TeamApplication:
         async with self._db_pool.connection() as conn:
             async with conn.transaction():
                 try:
                     application_result = await conn.execute(
                         TeamApplicationQueries.SELECT_TEAM_APPLICATION,
-                        (application_id,)
+                        (application_id,),
                     )
                     application_row = await application_result.fetchone()
                     if not application_row:
-                        raise adapter_error.TeamApplicationNotFoundError(
-                            application_id)
+                        raise adapter_error.TeamApplicationNotFoundError(application_id)
 
                     members_result = await conn.execute(
-                        MembersQueries.SELECT_MEMBERS,
-                        (application_id,)
+                        MembersQueries.SELECT_MEMBERS, (application_id,)
                     )
                     members_rows = await members_result.fetchall()
                     members = [
@@ -135,17 +135,18 @@ class TeamApplicationPostgresRepository:
                 return await self._fetch_applications(
                     conn,
                     TeamApplicationQueries.SELECT_TEAM_APPLICATION_BY_TRACK_ID,
-                    (track_id,)
+                    (track_id,),
                 )
 
     async def get_confirmed_by_track_id(
-            self, track_id: uuid.UUID) -> list[TeamApplication]:
+        self, track_id: uuid.UUID
+    ) -> list[TeamApplication]:
         async with self._db_pool.connection() as conn:
             async with conn.transaction():
                 return await self._fetch_applications(
                     conn,
                     TeamApplicationQueries.SELECT_CONFIRMED_BY_TRACK_ID,
-                    (track_id,)
+                    (track_id,),
                 )
 
     async def count_confirmed_by_track(self, track_id: uuid.UUID) -> int:
@@ -153,7 +154,7 @@ class TeamApplicationPostgresRepository:
             async with conn.transaction():
                 result = await conn.execute(
                     TeamApplicationQueries.COUNT_CONFIRMED_APPLICATIONS_BY_ID,
-                    (track_id,)
+                    (track_id,),
                 )
                 row = await result.fetchone()
                 return int(row[0]) if row else 0
@@ -162,24 +163,23 @@ class TeamApplicationPostgresRepository:
         async with self._db_pool.connection() as conn:
             async with conn.transaction():
                 return await self._fetch_applications(
-                    conn,
-                    TeamApplicationQueries.SELECT_EXPIRED_INVALID
+                    conn, TeamApplicationQueries.SELECT_EXPIRED_INVALID
                 )
 
-    async def get_next_waiting_by_track(self, track_id: uuid.UUID) -> TeamApplication | None:
+    async def get_next_waiting_by_track(
+        self, track_id: uuid.UUID
+    ) -> TeamApplication | None:
         async with self._db_pool.connection() as conn:
             async with conn.transaction():
                 application_result = await conn.execute(
-                    TeamApplicationQueries.SELECT_NEXT_TEAM_APPLICATION,
-                    (track_id,)
+                    TeamApplicationQueries.SELECT_NEXT_TEAM_APPLICATION, (track_id,)
                 )
                 application_row = await application_result.fetchone()
                 if not application_row:
                     return None
 
                 members_result = await conn.execute(
-                    MembersQueries.SELECT_MEMBERS,
-                    (application_row[0],)
+                    MembersQueries.SELECT_MEMBERS, (application_row[0],)
                 )
                 members_rows = await members_result.fetchall()
                 members = [
@@ -204,10 +204,7 @@ class TeamApplicationPostgresRepository:
                 )
 
     async def _fetch_applications(
-        self,
-        conn,
-        query: str,
-        params: tuple = ()
+        self, conn, query: str, params: tuple = ()
     ) -> list[TeamApplication]:
         applications_result = await conn.execute(query, params)
         applications_rows = await applications_result.fetchall()
@@ -218,8 +215,7 @@ class TeamApplicationPostgresRepository:
         application_ids = [row[0] for row in applications_rows]
 
         members_result = await conn.execute(
-            MembersQueries.SELECT_MEMBERS_BY_APPLICATION_IDS,
-            (application_ids,)
+            MembersQueries.SELECT_MEMBERS_BY_APPLICATION_IDS, (application_ids,)
         )
         members_rows = await members_result.fetchall()
 

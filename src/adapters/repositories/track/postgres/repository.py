@@ -1,5 +1,4 @@
 import uuid
-import json
 from datetime import datetime, timezone
 from psycopg import errors as psycopg_errors
 from psycopg_pool import AsyncConnectionPool
@@ -34,12 +33,11 @@ class TrackPostgresRepository:
                             track.grace_period_hours,
                             now,
                             now,
-                        )
+                        ),
                     )
 
                     await conn.execute(
-                        ConfirmationRulesQueries.DELETE_CONFIRMATION_RULES,
-                        (track.id,)
+                        ConfirmationRulesQueries.DELETE_CONFIRMATION_RULES, (track.id,)
                     )
 
                     for sort_order, rule in enumerate(track.confirmation_rules):
@@ -51,13 +49,10 @@ class TrackPostgresRepository:
                                 rule.rule_type.value,
                                 serialize(rule),
                                 sort_order,
-                            )
+                            ),
                         )
 
-                    await conn.execute(
-                        RolesQueries.DELETE_TRACK_ROLES,
-                        (track.id,)
-                    )
+                    await conn.execute(RolesQueries.DELETE_TRACK_ROLES, (track.id,))
 
                     for role in track.roles:
                         await conn.execute(
@@ -67,7 +62,7 @@ class TrackPostgresRepository:
                                 role.name,
                                 role.count,
                                 now,
-                            )
+                            ),
                         )
 
                     for role in track.roles:
@@ -76,21 +71,19 @@ class TrackPostgresRepository:
                             (
                                 track.id,
                                 role.id,
-                            )
+                            ),
                         )
 
                 except psycopg_errors.UniqueViolation:
                     raise adapter_error.TrackAlreadyExistsError(track.id)
                 except psycopg_errors.ForeignKeyViolation:
-                    raise adapter_error.TrackRelatedEntityNotFoundError(
-                        track.id)
+                    raise adapter_error.TrackRelatedEntityNotFoundError(track.id)
 
     async def get_by_id(self, track_id: uuid.UUID) -> Track:
         async with self._db_pool.connection() as conn:
             async with conn.transaction():
                 track_result = await conn.execute(
-                    TrackQueries.SELECT_TRACK,
-                    (track_id,)
+                    TrackQueries.SELECT_TRACK, (track_id,)
                 )
 
                 track_row = await track_result.fetchone()
@@ -99,8 +92,7 @@ class TrackPostgresRepository:
                     raise adapter_error.TrackNotFoundError(track_id)
 
                 rules_result = await conn.execute(
-                    ConfirmationRulesQueries.SELECT_RULES,
-                    (track_id,)
+                    ConfirmationRulesQueries.SELECT_RULES, (track_id,)
                 )
 
                 rules_row = await rules_result.fetchall()
@@ -115,21 +107,14 @@ class TrackPostgresRepository:
                     )
 
                 roles_result = await conn.execute(
-                    RolesQueries.SELECT_ROLES,
-                    (track_id,)
+                    RolesQueries.SELECT_ROLES, (track_id,)
                 )
 
                 roles_row = await roles_result.fetchall()
 
                 roles = []
                 for row in roles_row:
-                    roles.append(
-                        Role(
-                            id=row[0],
-                            name=row[1],
-                            count=row[2]
-                        )
-                    )
+                    roles.append(Role(id=row[0], name=row[1], count=row[2]))
 
                 return Track(
                     id=track_id,

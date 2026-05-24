@@ -37,6 +37,5 @@ class ApplicationAlreadyExistsError(Exception):
 
 class ApplicationRelatedEntityNotFoundError(Exception):
     def __init__(self, application_id: uuid.UUID) -> None:
-        super().__init__(
-            f"Application {application_id} has invalid related entities")
+        super().__init__(f"Application {application_id} has invalid related entities")
         self.application_id = application_id

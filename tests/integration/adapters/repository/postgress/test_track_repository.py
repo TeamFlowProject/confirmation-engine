@@ -150,7 +150,9 @@ class TestTrackPostgresRepositorySave:
             await cleanup_db(pool)
 
     @pytest.mark.asyncio
-    async def test_updates_confirmation_rules_on_second_save(self, track_repository, pool):
+    async def test_updates_confirmation_rules_on_second_save(
+        self, track_repository, pool
+    ):
         track = Track(
             id=uuid.uuid4(),
             name="Track",
@@ -172,8 +174,7 @@ class TestTrackPostgresRepositorySave:
 
             result = await track_repository.get_by_id(track.id)
             assert len(result.confirmation_rules) == 1
-            assert isinstance(
-                result.confirmation_rules[0], RoleConfirmationRule)
+            assert isinstance(result.confirmation_rules[0], RoleConfirmationRule)
         finally:
             await cleanup_db(pool)
 
@@ -246,9 +247,7 @@ class TestTrackPostgresRepositoryGetById:
             await track_repository.save(track)
             result = await track_repository.get_by_id(track.id)
 
-            assert isinstance(
-                result.confirmation_rules[0], TeamSizeConfirmationRule)
-            assert isinstance(
-                result.confirmation_rules[1], RoleConfirmationRule)
+            assert isinstance(result.confirmation_rules[0], TeamSizeConfirmationRule)
+            assert isinstance(result.confirmation_rules[1], RoleConfirmationRule)
         finally:
             await cleanup_db(pool)

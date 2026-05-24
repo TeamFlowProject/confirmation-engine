@@ -30,7 +30,9 @@ class ConfirmationService:
         self, application_id: uuid.UUID
     ) -> TeamApplication:
         try:
-            application = await self._team_application_repository.get_by_id(application_id)
+            application = await self._team_application_repository.get_by_id(
+                application_id
+            )
             if application is None:
                 raise ApplicationNotFoundError(application_id)
             return application
@@ -62,8 +64,7 @@ class ConfirmationService:
         except adapter_errors.TeamApplicationAlreadyExistsError as exc:
             raise ApplicationAlreadyExistsError(application.id) from exc
         except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
-            raise ApplicationRelatedEntityNotFoundError(
-                application.id) from exc
+            raise ApplicationRelatedEntityNotFoundError(application.id) from exc
 
     async def create_team(self, application: TeamApplication) -> None:
         application.status = TeamStatus.NONE
@@ -72,8 +73,7 @@ class ConfirmationService:
         except adapter_errors.TeamApplicationAlreadyExistsError as exc:
             raise ApplicationAlreadyExistsError(application.id) from exc
         except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
-            raise ApplicationRelatedEntityNotFoundError(
-                application.id) from exc
+            raise ApplicationRelatedEntityNotFoundError(application.id) from exc
 
     async def submit_team(self, application: TeamApplication) -> None:
         existing = await self._get_application_or_raise(application.id)
@@ -126,8 +126,7 @@ class ConfirmationService:
         except adapter_errors.TeamApplicationAlreadyExistsError as exc:
             raise ApplicationAlreadyExistsError(application.id) from exc
         except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
-            raise ApplicationRelatedEntityNotFoundError(
-                application.id) from exc
+            raise ApplicationRelatedEntityNotFoundError(application.id) from exc
 
     async def reject_team(self, application_id: uuid.UUID, reason: str) -> None:
         application = await self._get_application_or_raise(application_id)
@@ -137,8 +136,7 @@ class ConfirmationService:
         except adapter_errors.TeamApplicationAlreadyExistsError as exc:
             raise ApplicationAlreadyExistsError(application.id) from exc
         except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
-            raise ApplicationRelatedEntityNotFoundError(
-                application.id) from exc
+            raise ApplicationRelatedEntityNotFoundError(application.id) from exc
 
     async def get_application(self, track_id: uuid.UUID) -> list[TeamApplication]:
         return await self._team_application_repository.get_by_track_id(track_id)
@@ -168,8 +166,7 @@ class ConfirmationService:
         except adapter_errors.TeamApplicationAlreadyExistsError as exc:
             raise ApplicationAlreadyExistsError(application.id) from exc
         except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
-            raise ApplicationRelatedEntityNotFoundError(
-                application.id) from exc
+            raise ApplicationRelatedEntityNotFoundError(application.id) from exc
 
     async def expire_grace_periods(self) -> None:
         """Called by infrastructure (scheduler/outbox worker) to reject
@@ -182,5 +179,4 @@ class ConfirmationService:
             except adapter_errors.TeamApplicationAlreadyExistsError as exc:
                 raise ApplicationAlreadyExistsError(application.id) from exc
             except adapter_errors.TeamApplicationRelatedEntityNotFoundError as exc:
-                raise ApplicationRelatedEntityNotFoundError(
-                    application.id) from exc
+                raise ApplicationRelatedEntityNotFoundError(application.id) from exc
