@@ -1,15 +1,22 @@
-import json
 import logging
-import uuid
 
 from aiokafka import AIOKafkaConsumer
 
 from src.controller.kafka.protocols import ConfirmationServiceProtocol
+from src.controller.kafka.dto import (
+    ParticipantDTO,
+    TeamCreatedDTO,
+    TeamSubmittedDTO,
+    TeamUpdatedDTO,
+    MemberKickedDTO,
+    MemberLeftDTO,
+    MemberJoinedDTO,
+)
 from src.service.errors import ApplicationNotFoundError, TrackNotFoundError
 from src.domain.aggregates.team_application import TeamApplication
 from src.domain.entities.member import Member
 from src.controller.kafka.topics import TOPICS
-from src.config import Settings
+
 
 logger = logging.getLogger(__name__)
 
@@ -17,18 +24,16 @@ OFFSET_ERRORS = (ApplicationNotFoundError, TrackNotFoundError)
 
 
 class KafkaConsumerController:
-    def __init__(self, service: ConfirmationServiceProtocol, config: Settings) -> None:
+    def __init__(
+        self, сonsumer: AIOKafkaConsumer, service: ConfirmationServiceProtocol
+    ) -> None:
         self._service = service
-        self._consumer = AIOKafkaConsumer(
-            *TOPICS,
-            bootstrap_servers=config.kafka_bootstrap,
-            group_id=config.kafka_group_id,
-            value_deserializer=lambda v: json.loads(v.decode("utf-8")),
-            auto_offset_reset="earliest",
-            enable_auto_commit=False,
-        )
+        self._consumer = сonsumer
 
-    def _build_application(self, payload: dict) -> TeamApplication:
+    @staticmethod
+    def _build_application(
+        dto: TeamCreatedDTO | TeamSubmittedDTO | TeamUpdatedDTO,
+    ) -> TeamApplication:
         """
         Строит TeamApplication из payload.
 
@@ -38,64 +43,51 @@ class KafkaConsumerController:
           для application.id и application.track_id (логика смены трека).
         """
         return TeamApplication(
-            id=uuid.UUID(payload["team_id"]),
-            track_id=uuid.UUID(payload["track_id"]),
-            name=payload["name"],
+            id=dto.id,
+            track_id=dto.track_id,
+            name=dto.name,
         )
 
-    def _build_member(self, payload: dict) -> Member:
+    @staticmethod
+    def _build_member(participant: ParticipantDTO) -> Member:
         return Member(
-            id=uuid.UUID(payload["user_id"]),
-            name=payload["name"],
-            surname=payload["surname"],
-            patronymic=payload["patronymic"],
-            role_id=uuid.UUID(payload["role_id"]),
+            id=participant.id,
+            name=participant.name,
+            surname=participant.surname,
+            patronymic=participant.patronymic,
+            role_id=participant.role_id,
         )
 
-    async def handle_team_created(self, payload: dict) -> None:
-        application = self._build_application(payload)
-        await self._service.create_team(application)
+    async def handle_team_created(self, dto: TeamCreatedDTO) -> None:
+        await self._service.create_team(self._build_application(dto))
 
-    async def handle_team_submitted(self, payload: dict) -> None:
-        application = self._build_application(payload)
-        await self._service.submit_team(application)
+    async def handle_team_submitted(self, dto: TeamSubmittedDTO) -> None:
+        await self._service.submit_team(self._build_application(dto))
 
-    async def handle_team_updated(self, payload: dict) -> None:
-        application = self._build_application(payload)
-        await self._service.update_team(application)
+    async def handle_team_updated(self, dto: TeamUpdatedDTO) -> None:
+        await self._service.update_team(self._build_application(dto))
 
-    async def handle_member_removed(self, payload: dict) -> None:
-        application_id = uuid.UUID(payload["team_id"])
-        member_id = uuid.UUID(payload["user_id"])
-        await self._service.delete_member(application_id, member_id)
+    async def handle_member_removed(self, dto: MemberKickedDTO | MemberLeftDTO) -> None:
+        await self._service.delete_member(dto.id, dto.member.id)
 
-    async def handle_member_joined(self, payload: dict) -> None:
-        application_id = uuid.UUID(payload["team_id"])
-        member = self._build_member(payload)
-        await self._service.add_member(application_id, member)
+    async def handle_member_joined(self, dto: MemberJoinedDTO) -> None:
+        await self._service.add_member(dto.id, self._build_member(dto.member))
 
-    async def _dispatch(self, topic: str, payload: dict) -> None:
+    async def _dispatch(self, topic: str, dto) -> None:
         match topic:
             case "event_service.team.created":
-                await self.handle_team_created(payload)
-
+                await self.handle_team_created(dto)
             case "event_service.team.submitted":
-                await self.handle_team_submitted(payload)
-
+                await self.handle_team_submitted(dto)
             case "event_service.team.updated":
-                await self.handle_team_updated(payload)
-
-            case "event_service.mebmer.kicked" | "event_service.mebmer.left":
-                await self.handle_member_removed(payload)
-
+                await self.handle_team_updated(dto)
+            case "event_service.team.member.kicked" | "event_service.team.member.left":
+                await self.handle_member_removed(dto)
             case (
-                "event_service.invataion.accepted"
+                "event_service.invitation.accepted"
                 | "event_service.join_request.accepted"
             ):
-                await self.handle_member_joined(payload)
-
-            case _:
-                logger.warning("Unhandled topic: %s", topic)
+                await self.handle_member_joined(dto)
 
     async def start(self) -> None:
         await self._consumer.start()
@@ -115,7 +107,14 @@ class KafkaConsumerController:
 
     async def _process(self, msg) -> None:
         try:
-            await self._dispatch(msg.topic, msg.value)
+            dto_class = TOPICS.get(msg.topic)
+            if dto_class is None:
+                logger.warning("Unhandled topic: %s", msg.topic)
+                await self._consumer.commit()
+                return
+
+            dto = dto_class.model_validate(msg.value)
+            await self._dispatch(msg.topic, dto)
             await self._consumer.commit()
 
         except OFFSET_ERRORS as e:

@@ -22,6 +22,3 @@ class Settings(BaseSettings):
     kafka_topic_events: str = Field(default="event-events", alias="KAFKA_TOPIC_EVENTS")
     kafka_group_id: str = Field(default="event-service", alias="KAFKA_GROUP_ID")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
-
-
-s = Settings()

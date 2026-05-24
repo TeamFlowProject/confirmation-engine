@@ -1,9 +1,18 @@
-TOPICS = [
-    "event_service.team.created",
-    "event_service.team.submitted",
-    "event_service.team.updated",
-    "event_service.member.kicked",
-    "event_service.member.left",
-    "event_service.invitation.accepted",
-    "event_service.join_request.accepted",
-]
+from src.controller.kafka.dto import (
+    TeamCreatedDTO,
+    TeamSubmittedDTO,
+    TeamUpdatedDTO,
+    MemberKickedDTO,
+    MemberLeftDTO,
+    MemberJoinedDTO,
+)
+
+TOPICS = {
+    "event_service.team.created": TeamCreatedDTO,
+    "event_service.team.submitted": TeamSubmittedDTO,
+    "event_service.team.updated": TeamUpdatedDTO,
+    "event_service.team.member.kicked": MemberKickedDTO,
+    "event_service.team.member.left": MemberLeftDTO,
+    "event_service.invitation.accepted": MemberJoinedDTO,
+    "event_service.join_request.accepted": MemberJoinedDTO,
+}
