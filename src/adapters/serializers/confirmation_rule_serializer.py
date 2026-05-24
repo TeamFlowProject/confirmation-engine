@@ -12,7 +12,9 @@ def serialize(rule: ConfirmationRule) -> dict:
     if isinstance(rule, RoleConfirmationRule):
         return {
             "rule_type": rule.rule_type.value,
-            "params": {"take_into_account_role_count": rule.take_into_account_role_count}
+            "params": {
+                "take_into_account_role_count": rule.take_into_account_role_count
+            },
         }
     if isinstance(rule, TeamSizeConfirmationRule):
         return {
@@ -20,7 +22,7 @@ def serialize(rule: ConfirmationRule) -> dict:
             "params": {
                 "max_team_size": rule.max_team_size,
                 "min_team_size": rule.min_team_size,
-            }
+            },
         }
     raise ValueError(f"Unknown rule type: {type(rule)}")
 

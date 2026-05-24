@@ -66,9 +66,7 @@ class TeamApplicationPostgresRepository:
 
                     events = application.collect_events()
                     for event in events:
-                        idempotency_key = (
-                            f"TeamApplication:{application.id}:{type(event).__name__}:{now.isoformat()}"
-                        )
+                        idempotency_key = f"TeamApplication:{application.id}:{type(event).__name__}:{now.isoformat()}"
                         await conn.execute(
                             OutboxQueries.INSERT_OUTBOX_EVENT,
                             {
@@ -100,8 +98,7 @@ class TeamApplicationPostgresRepository:
                     )
                     application_row = await application_result.fetchone()
                     if not application_row:
-                        raise adapter_error.TeamApplicationNotFoundError(
-                            application_id)
+                        raise adapter_error.TeamApplicationNotFoundError(application_id)
 
                     members_result = await conn.execute(
                         MembersQueries.SELECT_MEMBERS,

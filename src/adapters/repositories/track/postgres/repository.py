@@ -28,8 +28,7 @@ class TrackPostgresRepository:
                             "auto_confirm": track.auto_confirm,
                             "grace_period_hours": track.grace_period_hours,
                             "confirmation_rules": json.dumps(
-                                [serialize(r)
-                                 for r in track.confirmation_rules]
+                                [serialize(r) for r in track.confirmation_rules]
                             ),
                             "created_at": now,
                             "updated_at": now,
@@ -60,8 +59,7 @@ class TrackPostgresRepository:
                 except psycopg_errors.UniqueViolation:
                     raise adapter_error.TrackAlreadyExistsError(track.id)
                 except psycopg_errors.ForeignKeyViolation:
-                    raise adapter_error.TrackRelatedEntityNotFoundError(
-                        track.id)
+                    raise adapter_error.TrackRelatedEntityNotFoundError(track.id)
 
     async def get_by_id(self, track_id: uuid.UUID) -> Track:
         async with self._db_pool.connection() as conn:
@@ -86,11 +84,9 @@ class TrackPostgresRepository:
                     auto_confirm=track_row[2],
                     grace_period_hours=track_row[3],
                     roles=[
-                        Role(id=row[0], name=row[1], count=row[2])
-                        for row in roles_rows
+                        Role(id=row[0], name=row[1], count=row[2]) for row in roles_rows
                     ],
                     confirmation_rules=[
-                        deserialize(r["rule_type"], r["params"])
-                        for r in track_row[4]
+                        deserialize(r["rule_type"], r["params"]) for r in track_row[4]
                     ],
                 )
