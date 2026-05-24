@@ -28,7 +28,7 @@ class KafkaProducer:
 
     async def send(self, topic: str, key: bytes, value: bytes) -> None:
         try:
-            await self._producer.send(topic=topic, key=key, value=value)
+            await self._producer.send_and_wait(topic=topic, key=key, value=value)
         except KafkaError as e:
             logger.exception("Failed to send to topic=%s: %s", topic, e)
             raise
