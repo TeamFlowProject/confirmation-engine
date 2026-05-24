@@ -1,10 +1,7 @@
-from aiokafka import AIOKafkaProducer as AsyncKafkaProducer
+from typing import Protocol
 
 
-class KafkaProducer:
-    def __init__(self, producer: AsyncKafkaProducer) -> None:
-        self._producer = producer
-
+class KafkaProducerProtocol(Protocol):
     async def start(self) -> None: ...
 
     async def stop(self) -> None: ...

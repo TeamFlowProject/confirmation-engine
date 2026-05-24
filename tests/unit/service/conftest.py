@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 import pytest
 
@@ -11,6 +10,7 @@ from src.domain.value_objects.confirmation_rule import (
     RoleConfirmationRule,
     TeamSizeConfirmationRule,
 )
+from src.adapters.repositories import errors as adapter_error
 from src.service.confirmation import ConfirmationService
 
 
@@ -25,8 +25,11 @@ class FakeTeamApplicationRepository:
         self.save_calls.append(application)
         self.store[application.id] = application
 
-    async def get_by_id(self, application_id: uuid.UUID) -> Optional[TeamApplication]:
-        return self.store.get(application_id)
+    async def get_by_id(self, application_id: uuid.UUID) -> TeamApplication:
+        result = self.store.get(application_id)
+        if result is None:
+            raise adapter_error.TeamApplicationNotFoundError(application_id)
+        return result
 
     async def get_by_track_id(self, track_id: uuid.UUID) -> list[TeamApplication]:
         return [a for a in self.store.values() if a.track_id == track_id]
@@ -73,8 +76,11 @@ class FakeTrackRepository:
         self.save_calls.append(track)
         self.store[track.id] = track
 
-    async def get_by_id(self, track_id: uuid.UUID) -> Optional[Track]:
-        return self.store.get(track_id)
+    async def get_by_id(self, track_id: uuid.UUID) -> Track:
+        result = self.store.get(track_id)
+        if result is None:
+            raise adapter_error.TrackNotFoundError(track_id)
+        return result
 
 
 @pytest.fixture
