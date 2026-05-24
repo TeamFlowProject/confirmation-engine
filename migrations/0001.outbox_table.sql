@@ -1,4 +1,8 @@
-CREATE TYPE IF NOT EXISTS event_status AS ENUM('SENT', 'PENDING', 'FAILED');
+DO $$ BEGIN CREATE TYPE event_status AS ENUM('SENT', 'PENDING', 'FAILED');
+
+EXCEPTION WHEN duplicate_object THEN NULL;
+
+END $$;
 
 CREATE TABLE IF NOT EXISTS
     outbox_events (
