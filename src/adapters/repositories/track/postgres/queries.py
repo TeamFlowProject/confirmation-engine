@@ -3,7 +3,7 @@ class TrackQueries:
         INSERT INTO tracks (
             id,
             name,
-            max_team_size,
+            max_team_count,
             auto_confirm,
             grace_period_hours,
             created_at,
@@ -19,9 +19,8 @@ class TrackQueries:
             rule_type,
             params,
             sort_order
-            created_at
         )
-        VALUES (%s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s)
         """
 
     INSERT_ROLE = """

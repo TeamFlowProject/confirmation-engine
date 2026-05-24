@@ -40,9 +40,8 @@ class TrackPostgresRepository:
                                 uuid.uuid4(),
                                 track.id,
                                 rule.rule_type.value,
-                                json.dumps(serialize(rule)),
+                                serialize(rule),
                                 sort_order,
-                                now,
                             )
                         )
 

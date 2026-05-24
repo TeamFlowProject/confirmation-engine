@@ -22,6 +22,9 @@ def serialize(rule: ConfirmationRule) -> str:
 
 
 def deserialize(rule_type: str, params: dict) -> ConfirmationRule:
+    if isinstance(params, str):
+        params = json.loads(params)
+
     match ConfirmationRuleType(rule_type):
         case ConfirmationRuleType.ROLE:
             return RoleConfirmationRule(

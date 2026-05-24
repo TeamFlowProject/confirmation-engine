@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS
         max_team_count INT NOT NULL,
         auto_confirm BOOL NOT NULL DEFAULT FALSE,
         grace_period_hours INT NOT NULL DEFAULT 24,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
 CREATE TABLE IF NOT EXISTS
