@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime,  timezone
 from psycopg_pool import AsyncConnectionPool
@@ -7,7 +8,8 @@ from src.domain.entities.member import Member
 from src.domain.aggregates.team_application import TeamApplication, TeamStatus
 from src.adapters.repositories.team_application.postgres.queries import (
     TeamApplicationQueries,
-    MembersQueries
+    MembersQueries,
+    OutboxQueries,
 )
 import src.adapters.repositories.errors as adapter_error
 
@@ -61,6 +63,22 @@ class TeamApplicationPostgresRepository:
                                 member.id,
                             )
                         )
+
+                    events = application.collect_events()
+                    for event in events:
+                        idempotency_key = f"TeamApplication:{application.id}:{type(event).__name__}"
+                        await conn.execute(
+                            OutboxQueries.INSERT_OUTBOX_EVENT,
+                            (
+                                uuid.uuid4(),
+                                "TeamApplication",
+                                str(application.id),
+                                type(event).__name__,
+                                json.dumps(event.__dict__),
+                                idempotency_key,
+                            )
+                        )
+
                 except psycopg_error.UniqueViolation:
                     raise adapter_error.TeamApplicationAlreadyExistsError(
                         application.id)

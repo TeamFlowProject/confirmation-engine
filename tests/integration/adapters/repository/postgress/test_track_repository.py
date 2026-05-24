@@ -131,6 +131,69 @@ class TestTrackPostgresRepositorySave:
         finally:
             await cleanup_db(pool)
 
+    @pytest.mark.asyncio
+    async def test_updates_track_on_second_save(self, track_repository, pool):
+        track = _make_track()
+        try:
+            await track_repository.save(track)
+
+            track.name = "Updated Track"
+            track.max_team_count = 20
+            track.auto_confirm = True
+            await track_repository.save(track)
+
+            result = await track_repository.get_by_id(track.id)
+            assert result.name == "Updated Track"
+            assert result.max_team_count == 20
+            assert result.auto_confirm is True
+        finally:
+            await cleanup_db(pool)
+
+    @pytest.mark.asyncio
+    async def test_updates_confirmation_rules_on_second_save(self, track_repository, pool):
+        track = Track(
+            id=uuid.uuid4(),
+            name="Track",
+            max_team_count=5,
+            auto_confirm=False,
+            grace_period_hours=24,
+            roles=[],
+            confirmation_rules=[
+                TeamSizeConfirmationRule(min_team_size=1, max_team_size=3),
+            ],
+        )
+        try:
+            await track_repository.save(track)
+
+            track.confirmation_rules = [
+                RoleConfirmationRule(take_into_account_role_count=True),
+            ]
+            await track_repository.save(track)
+
+            result = await track_repository.get_by_id(track.id)
+            assert len(result.confirmation_rules) == 1
+            assert isinstance(
+                result.confirmation_rules[0], RoleConfirmationRule)
+        finally:
+            await cleanup_db(pool)
+
+    @pytest.mark.asyncio
+    async def test_updates_roles_on_second_save(self, track_repository, pool):
+        role1 = _make_role()
+        role2 = _make_role()
+        track = _make_track(roles=[role1])
+        try:
+            await track_repository.save(track)
+
+            track.roles = [role2]
+            await track_repository.save(track)
+
+            result = await track_repository.get_by_id(track.id)
+            assert len(result.roles) == 1
+            assert result.roles[0].id == role2.id
+        finally:
+            await cleanup_db(pool)
+
 
 @pytest.mark.integration
 class TestTrackPostgresRepositoryGetById:

@@ -143,3 +143,18 @@ class MembersQueries:
         JOIN team_application_members tm ON tm.member_id = m.id
         WHERE tm.application_id = ANY(%s)
         """
+
+
+class OutboxQueries:
+    INSERT_OUTBOX_EVENT = """
+        INSERT INTO outbox_events (
+            id,
+            aggregate_type,
+            aggregate_id,
+            event_type,
+            payload,
+            idempotency_key
+        )
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (idempotency_key) DO NOTHING
+        """

@@ -6,7 +6,11 @@ from psycopg_pool import AsyncConnectionPool
 from src.adapters.serializers.confirmation_rule_serializer import serialize, deserialize
 from src.domain.aggregates.track import Track
 from src.domain.entities.role import Role
-from src.adapters.repositories.track.postgres.queries import TrackQueries
+from src.adapters.repositories.track.postgres.queries import (
+    TrackQueries,
+    ConfirmationRulesQueries,
+    RolesQueries,
+)
 
 import src.adapters.repositories.errors as adapter_error
 
@@ -33,9 +37,14 @@ class TrackPostgresRepository:
                         )
                     )
 
+                    await conn.execute(
+                        ConfirmationRulesQueries.DELETE_CONFIRMATION_RULES,
+                        (track.id,)
+                    )
+
                     for sort_order, rule in enumerate(track.confirmation_rules):
                         await conn.execute(
-                            TrackQueries.INSERT_CONFIRMATION_RULE,
+                            ConfirmationRulesQueries.INSERT_CONFIRMATION_RULE,
                             (
                                 uuid.uuid4(),
                                 track.id,
@@ -45,9 +54,14 @@ class TrackPostgresRepository:
                             )
                         )
 
+                    await conn.execute(
+                        RolesQueries.DELETE_TRACK_ROLES,
+                        (track.id,)
+                    )
+
                     for role in track.roles:
                         await conn.execute(
-                            TrackQueries.INSERT_ROLE,
+                            RolesQueries.INSERT_ROLE,
                             (
                                 role.id,
                                 role.name,
@@ -58,7 +72,7 @@ class TrackPostgresRepository:
 
                     for role in track.roles:
                         await conn.execute(
-                            TrackQueries.INSERT_ROLE_CONNECTION,
+                            RolesQueries.INSERT_ROLE_CONNECTION,
                             (
                                 track.id,
                                 role.id,
@@ -85,7 +99,7 @@ class TrackPostgresRepository:
                     raise adapter_error.TrackNotFoundError(track_id)
 
                 rules_result = await conn.execute(
-                    TrackQueries.SELECT_RULES,
+                    ConfirmationRulesQueries.SELECT_RULES,
                     (track_id,)
                 )
 
@@ -101,7 +115,7 @@ class TrackPostgresRepository:
                     )
 
                 roles_result = await conn.execute(
-                    TrackQueries.SELECT_ROLES,
+                    RolesQueries.SELECT_ROLES,
                     (track_id,)
                 )
 
