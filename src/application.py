@@ -2,7 +2,7 @@ import asyncio
 
 import psycopg_pool
 import uvicorn
-from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+from aiokafka import AIOKafkaProducer
 from fastapi import FastAPI
 from loguru import logger
 
@@ -47,12 +47,7 @@ async def run_application(settings: Settings) -> None:
     fastapi_app.include_router(confirmation_router)
     logger.debug("HTTP router registered")
 
-    consumer = AIOKafkaConsumer(
-        settings.kafka_topic_events,
-        bootstrap_servers=settings.kafka_bootstrap,
-        group_id=settings.kafka_group_id,
-    )
-    kafka_consumer = KafkaConsumerController(consumer, service)
+    kafka_consumer = KafkaConsumerController(service, settings)
     logger.debug(
         "Kafka consumer created: topic={}, group={}",
         settings.kafka_topic_events,
@@ -73,7 +68,6 @@ async def run_application(settings: Settings) -> None:
         )
     finally:
         logger.debug("Shutting down")
-        await consumer.stop()
         await producer.stop()
         await outbox_worker.stop()
         await db_pool.close()
