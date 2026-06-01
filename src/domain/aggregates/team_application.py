@@ -48,6 +48,13 @@ class TeamApplication:
     def remove_member(self, member_id: uuid.UUID) -> None:
         self.members = [m for m in self.members if m.id != member_id]
 
+    def change_member_role(self, member_id: uuid.UUID, new_role_id: uuid.UUID) -> bool:
+        for m in self.members:
+            if m.id == member_id:
+                m.role_id = new_role_id
+                return True
+        return False
+
     def confirm(self) -> None:
         if self.status != TeamStatus.VALIDATED:
             raise InvalidStatusTransitionError(self.status, TeamStatus.CONFIRMED)

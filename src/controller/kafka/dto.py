@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -7,7 +8,23 @@ class ParticipantDTO(BaseModel):
     name: str
     surname: str
     patronymic: str
-    role_id: uuid.UUID
+    role_id: Optional[uuid.UUID] = None
+
+
+class TrackRoleDTO(BaseModel):
+    id: uuid.UUID
+    name: str
+    count: int
+
+
+class TrackCreatedDTO(BaseModel):
+    id: uuid.UUID
+    name: str
+    required_roles: list[TrackRoleDTO] = []
+
+
+class TrackUpdatedDTO(TrackCreatedDTO):
+    pass
 
 
 class TeamCreatedDTO(BaseModel):
@@ -40,6 +57,10 @@ class MemberKickedDTO(TeamCreatedDTO):
 
 class MemberLeftDTO(MemberKickedDTO):
     pass
+
+
+class MemberRoleChangedDTO(MemberKickedDTO):
+    previous_role_id: Optional[uuid.UUID] = None
 
 
 MemberJoinedDTO = MemberKickedDTO

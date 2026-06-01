@@ -1,3 +1,4 @@
+import json
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 import pytest
@@ -10,6 +11,8 @@ from src.controller.kafka.dto import (
     MemberKickedDTO,
     MemberLeftDTO,
     MemberJoinedDTO,
+    TrackCreatedDTO,
+    TrackUpdatedDTO,
 )
 from src.service.errors import ApplicationNotFoundError, TrackNotFoundError
 
@@ -48,6 +51,24 @@ def make_member_team_data(**overrides) -> dict:
     }
 
 
+def make_track_role_data(**overrides) -> dict:
+    return {
+        "id": str(uuid.uuid4()),
+        "name": "Backend",
+        "count": 2,
+        **overrides,
+    }
+
+
+def make_track_data(**overrides) -> dict:
+    return {
+        "id": str(uuid.uuid4()),
+        "name": "Track A",
+        "required_roles": [make_track_role_data()],
+        **overrides,
+    }
+
+
 @pytest.fixture
 def service() -> AsyncMock:
     return AsyncMock()
@@ -55,9 +76,9 @@ def service() -> AsyncMock:
 
 @pytest.fixture
 def consumer() -> AsyncMock:
-    # Создаём мок consumer-а с методом commit
     mock = AsyncMock()
     mock.commit = AsyncMock()
+    mock.seek = MagicMock()
     return mock
 
 
@@ -68,10 +89,13 @@ def controller(service: AsyncMock, consumer: AsyncMock) -> KafkaConsumerControll
     return KafkaConsumerController(сonsumer=consumer, service=service)
 
 
-def make_msg(topic: str, value: dict) -> MagicMock:
+def make_msg(topic: str, value: dict | bytes | None) -> MagicMock:
     msg = MagicMock()
     msg.topic = topic
-    msg.value = value
+    if isinstance(value, dict):
+        msg.value = json.dumps(value).encode()
+    else:
+        msg.value = value
     msg.partition = 0
     msg.offset = 0
     return msg
@@ -88,6 +112,8 @@ class TestTopicDtoMap:
             "event_service.team.member.left",
             "event_service.invitation.accepted",
             "event_service.join_request.accepted",
+            "event_service.track.created",
+            "event_service.track.updated",
         }
         for topic in expected_topics:
             assert topic in TOPICS, f"Topic {topic!r} missing from TOPICS"
@@ -100,6 +126,8 @@ class TestTopicDtoMap:
         assert TOPICS["event_service.team.member.left"] is MemberLeftDTO
         assert TOPICS["event_service.invitation.accepted"] is MemberJoinedDTO
         assert TOPICS["event_service.join_request.accepted"] is MemberJoinedDTO
+        assert TOPICS["event_service.track.created"] is TrackCreatedDTO
+        assert TOPICS["event_service.track.updated"] is TrackUpdatedDTO
 
 
 class TestHandleTeamCreated:
@@ -233,7 +261,7 @@ class TestProcess:
         assert "Failed to process" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_invalid_payload_logs_and_does_not_commit(
+    async def test_invalid_payload_skips_and_commits(
         self, controller, consumer, caplog
     ):
         msg = make_msg("event_service.team.created", {"bad": "data"})
@@ -241,7 +269,28 @@ class TestProcess:
         with caplog.at_level("ERROR"):
             await controller._process(msg)
 
-        consumer.commit.assert_not_called()
+        consumer.commit.assert_called_once()
+        assert "Skipping malformed message" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_malformed_json_skips_and_commits(self, controller, consumer, caplog):
+        msg = make_msg("event_service.team.created", b"{not json")
+
+        with caplog.at_level("ERROR"):
+            await controller._process(msg)
+
+        consumer.commit.assert_called_once()
+        assert "Skipping malformed message" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_none_payload_skips_and_commits(self, controller, consumer, caplog):
+        msg = make_msg("event_service.team.created", None)
+
+        with caplog.at_level("ERROR"):
+            await controller._process(msg)
+
+        consumer.commit.assert_called_once()
+        assert "Skipping malformed message" in caplog.text
 
 
 class TestProcessDispatchIntegration:
@@ -286,3 +335,33 @@ class TestProcessDispatchIntegration:
         msg = make_msg("event_service.join_request.accepted", make_member_team_data())
         await controller._process(msg)
         service.add_member.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_track_created(self, controller, service):
+        msg = make_msg("event_service.track.created", make_track_data())
+        await controller._process(msg)
+        service.update_track_roles.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_track_updated(self, controller, service):
+        msg = make_msg("event_service.track.updated", make_track_data())
+        await controller._process(msg)
+        service.update_track_roles.assert_called_once()
+
+
+class TestHandleTrackRolesChanged:
+    @pytest.mark.asyncio
+    async def test_calls_update_track_roles(self, controller, service):
+        data = make_track_data()
+        dto = TrackCreatedDTO.model_validate(data)
+
+        await controller.handle_track_roles_changed(dto)
+
+        service.update_track_roles.assert_called_once()
+        track_id, name, roles = service.update_track_roles.call_args[0]
+        assert track_id == dto.id
+        assert name == dto.name
+        assert len(roles) == 1
+        assert roles[0].id == dto.required_roles[0].id
+        assert roles[0].name == dto.required_roles[0].name
+        assert roles[0].count == dto.required_roles[0].count

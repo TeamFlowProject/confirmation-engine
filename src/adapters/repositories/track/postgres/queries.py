@@ -20,6 +20,23 @@ class TrackQueries:
             updated_at         = now()
         """
 
+    INSERT_TRACK_IF_NOT_EXISTS = """
+        INSERT INTO tracks (
+            id,
+            name,
+            max_team_count,
+            auto_confirm,
+            grace_period_hours,
+            confirmation_rules,
+            created_at,
+            updated_at
+        )
+        VALUES (%(id)s, %(name)s, 0, false, 24, '[]'::jsonb, %(now)s, %(now)s)
+        ON CONFLICT (id) DO UPDATE SET
+            name       = EXCLUDED.name,
+            updated_at = now()
+        """
+
     SELECT_TRACK = """
         SELECT
             t.name,
@@ -33,7 +50,7 @@ class TrackQueries:
 
 
 class RolesQueries:
-    INSERT_ROLE = """
+    UPSERT_ROLE = """
         INSERT INTO roles (
             id,
             name,
@@ -41,7 +58,9 @@ class RolesQueries:
             created_at
         )
         VALUES (%(id)s, %(name)s, %(count)s, %(created_at)s)
-        ON CONFLICT (id) DO NOTHING
+        ON CONFLICT (id) DO UPDATE SET
+            name  = EXCLUDED.name,
+            count = EXCLUDED.count
         """
 
     INSERT_ROLE_CONNECTION = """

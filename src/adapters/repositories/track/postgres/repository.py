@@ -15,6 +15,14 @@ class TrackPostgresRepository:
         self._db_pool = db_pool
 
     async def save(self, track: Track) -> None:
+        """
+        Сохраняет конфигурацию трека (confirmation rules + параметры).
+
+        Роли и связи track_roles НЕ трогаются: они принадлежат синхронизации
+        из event-service через Kafka (см. update_roles). Раньше save() делал
+        DELETE_TRACK_ROLES + переинсерт из payload, и POST /rule без roles
+        затирал синхронизированные из Kafka связи.
+        """
         async with self._db_pool.connection() as conn:
             async with conn.transaction():
                 try:
@@ -35,31 +43,38 @@ class TrackPostgresRepository:
                         },
                     )
 
-                    await conn.execute(
-                        RolesQueries.DELETE_TRACK_ROLES, {"track_id": track.id}
-                    )
-
-                    for role in track.roles:
-                        await conn.execute(
-                            RolesQueries.INSERT_ROLE,
-                            {
-                                "id": role.id,
-                                "name": role.name,
-                                "count": role.count,
-                                "created_at": now,
-                            },
-                        )
-
-                    for role in track.roles:
-                        await conn.execute(
-                            RolesQueries.INSERT_ROLE_CONNECTION,
-                            {"track_id": track.id, "role_id": role.id},
-                        )
-
                 except psycopg_errors.UniqueViolation:
                     raise adapter_error.TrackAlreadyExistsError(track.id)
                 except psycopg_errors.ForeignKeyViolation:
                     raise adapter_error.TrackRelatedEntityNotFoundError(track.id)
+
+    async def update_roles(
+        self, track_id: uuid.UUID, name: str, roles: list[Role]
+    ) -> None:
+        async with self._db_pool.connection() as conn:
+            async with conn.transaction():
+                now = datetime.now(timezone.utc)
+                await conn.execute(
+                    TrackQueries.INSERT_TRACK_IF_NOT_EXISTS,
+                    {"id": track_id, "name": name, "now": now},
+                )
+                await conn.execute(
+                    RolesQueries.DELETE_TRACK_ROLES, {"track_id": track_id}
+                )
+                for role in roles:
+                    await conn.execute(
+                        RolesQueries.UPSERT_ROLE,
+                        {
+                            "id": role.id,
+                            "name": role.name,
+                            "count": role.count,
+                            "created_at": now,
+                        },
+                    )
+                    await conn.execute(
+                        RolesQueries.INSERT_ROLE_CONNECTION,
+                        {"track_id": track_id, "role_id": role.id},
+                    )
 
     async def get_by_id(self, track_id: uuid.UUID) -> Track:
         async with self._db_pool.connection() as conn:

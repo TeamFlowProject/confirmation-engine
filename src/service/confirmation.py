@@ -3,6 +3,7 @@ import uuid
 from src.domain.aggregates.team_application import TeamApplication
 from src.domain.aggregates.track import Track
 from src.domain.entities.member import Member
+from src.domain.entities.role import Role
 from src.domain.repositories.team_application import TeamApplicationRepository
 from src.domain.repositories.track import TrackRepository
 from src.domain.value_objects.team_status import TeamStatus
@@ -110,6 +111,19 @@ class ConfirmationService:
         track = await self._get_track_or_raise(application.track_id)
         await self._validate_and_save(application, track)
 
+    async def change_member_role(
+        self,
+        application_id: uuid.UUID,
+        member_id: uuid.UUID,
+        new_role_id: uuid.UUID,
+    ) -> None:
+        application = await self._get_application_or_raise(application_id)
+        if not application.change_member_role(member_id, new_role_id):
+            return
+
+        track = await self._get_track_or_raise(application.track_id)
+        await self._validate_and_save(application, track)
+
     async def create_rule(self, track: Track) -> None:
         try:
             await self._track_repository.save(track)
@@ -117,6 +131,11 @@ class ConfirmationService:
             raise TrackAlreadyExistsError(track.id) from exc
         except adapter_errors.TrackRelatedEntityNotFoundError as exc:
             raise TrackRelatedEntityNotFoundError(track.id) from exc
+
+    async def update_track_roles(
+        self, track_id: uuid.UUID, name: str, roles: list[Role]
+    ) -> None:
+        await self._track_repository.update_roles(track_id, name, roles)
 
     async def confirm_team(self, application_id: uuid.UUID) -> None:
         application = await self._get_application_or_raise(application_id)

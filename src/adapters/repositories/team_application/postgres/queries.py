@@ -153,8 +153,9 @@ class OutboxQueries:
             aggregate_id,
             event_type,
             payload,
+            status,
             idempotency_key
         )
-        VALUES (%(id)s, %(aggregate_type)s, %(aggregate_id)s, %(event_type)s, %(payload)s, %(idempotency_key)s)
+        VALUES (%(id)s, %(aggregate_type)s, %(aggregate_id)s, %(event_type)s, %(payload)s, 'PENDING', %(idempotency_key)s)
         ON CONFLICT (idempotency_key) DO NOTHING
         """

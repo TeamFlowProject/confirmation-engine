@@ -120,11 +120,9 @@ class TestCreateRule:
         self, client: AsyncClient, service: FakeConfirmationService
     ):
         track_id = uuid.uuid4()
-        role_id = uuid.uuid4()
         payload = {
-            "id": str(track_id),
             "name": "Track A",
-            "roles": [{"id": str(role_id), "name": "Dev", "count": 2}],
+            "roles": [{"id": str(uuid.uuid4()), "name": "Dev", "count": 2}],
             "confirmation_rules": [
                 {"rule_type": "TEAM_SIZE", "min_team_size": 2, "max_team_size": 4},
                 {"rule_type": "ROLE", "take_into_account_role_count": True},
@@ -134,7 +132,7 @@ class TestCreateRule:
             "grace_period_hours": 10,
         }
 
-        response = await client.post("/rules", json=payload)
+        response = await client.post(f"/rule/{track_id}", json=payload)
 
         assert response.status_code == 201
         body = response.json()
@@ -147,8 +145,7 @@ class TestCreateRule:
         assert len(service.create_rule_calls) == 1
         saved = service.create_rule_calls[0]
         assert saved.id == track_id
-        assert len(saved.roles) == 1
-        assert saved.roles[0].id == role_id
+        assert saved.roles == []
         assert len(saved.confirmation_rules) == 2
         assert isinstance(saved.confirmation_rules[0], TeamSizeConfirmationRule)
         assert saved.confirmation_rules[0].min_team_size == 2
@@ -157,7 +154,7 @@ class TestCreateRule:
         assert saved.confirmation_rules[1].take_into_account_role_count is True
 
     async def test_invalid_body_returns_422(self, client: AsyncClient):
-        response = await client.post("/rules", json={"name": "no id"})
+        response = await client.post(f"/rule/{uuid.uuid4()}", json={})
         assert response.status_code == 422
 
 

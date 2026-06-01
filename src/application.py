@@ -13,6 +13,7 @@ from src.adapters.repositories.team_application.postgres.repository import (
 from src.adapters.repositories.track.postgres.repository import TrackPostgresRepository
 from src.config import Settings
 from src.controller.kafka.consumer import KafkaConsumerController
+from src.controller.kafka.topics import TOPICS
 from src.controller.rest.v1.confirmation_router import create_confirmation_router
 from src.service.confirmation import ConfirmationService
 
@@ -36,7 +37,7 @@ async def run_application(settings: Settings) -> None:
     kafka_producer = KafkaProducer(producer)
     logger.debug("Kafka producer started")
 
-    outbox_worker = OutboxWorker(kafka_producer)
+    outbox_worker = OutboxWorker(kafka_producer, db_pool)  # type: ignore
     logger.debug("OutboxWorker initialized")
 
     service = ConfirmationService(team_application_repository, track_repository)
@@ -48,14 +49,15 @@ async def run_application(settings: Settings) -> None:
     logger.debug("HTTP router registered")
 
     consumer = AIOKafkaConsumer(
-        settings.kafka_topic_events,
+        *TOPICS.keys(),
         bootstrap_servers=settings.kafka_bootstrap,
         group_id=settings.kafka_group_id,
+        enable_auto_commit=False,
     )
     kafka_consumer = KafkaConsumerController(consumer, service)
     logger.debug(
-        "Kafka consumer created: topic={}, group={}",
-        settings.kafka_topic_events,
+        "Kafka consumer created: topics={}, group={}",
+        list(TOPICS.keys()),
         settings.kafka_group_id,
     )
 

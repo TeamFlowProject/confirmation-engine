@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 import uuid
 
 
@@ -10,4 +11,4 @@ class Member:
     surname: str
     patronymic: str
 
-    role_id: uuid.UUID
+    role_id: Optional[uuid.UUID] = None

@@ -14,8 +14,9 @@ class OutboxWorker:
     def __init__(
         self,
         producer: KafkaProducerProtocol,
+        db_pool: AsyncConnectionPool,
     ) -> None:
-        self._db_pool = AsyncConnectionPool()
+        self._db_pool = db_pool
         self._producer = producer
         self._poll_interval = 0.2
         self._running = False
