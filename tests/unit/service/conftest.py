@@ -82,6 +82,21 @@ class FakeTrackRepository:
             raise adapter_error.TrackNotFoundError(track_id)
         return result
 
+    async def update_roles(
+        self, track_id: uuid.UUID, name: str, roles: list[Role]
+    ) -> None:
+        existing = self.store.get(track_id)
+        if existing is None:
+            self.store[track_id] = Track(
+                id=track_id,
+                name=name,
+                roles=list(roles),
+                confirmation_rules=[],
+            )
+        else:
+            existing.name = name
+            existing.roles = list(roles)
+
 
 @pytest.fixture
 def app_repo() -> FakeTeamApplicationRepository:

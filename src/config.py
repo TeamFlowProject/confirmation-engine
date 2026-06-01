@@ -16,9 +16,5 @@ class Settings(BaseSettings):
     kafka_bootstrap: str = Field(default="localhost:9092", alias="KAFKA_BOOTSTRAP")
     http_host: str = Field(default="0.0.0.0", alias="HTTP_HOST")
     http_port: int = Field(default=8001, alias="HTTP_PORT")
-    kafka_topic_commands: str = Field(
-        default="event-commands", alias="KAFKA_TOPIC_COMMANDS"
-    )
-    kafka_topic_events: str = Field(default="event-events", alias="KAFKA_TOPIC_EVENTS")
     kafka_group_id: str = Field(default="event-service", alias="KAFKA_GROUP_ID")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")

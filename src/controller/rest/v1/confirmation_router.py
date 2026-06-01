@@ -23,9 +23,9 @@ from src.service.errors import (
 def create_confirmation_router(service: ConfirmationService) -> APIRouter:
     router = APIRouter()
 
-    @router.post("/rules", status_code=status.HTTP_201_CREATED)
-    async def create_rule(payload: TrackRequest) -> TrackResponse:
-        track = payload.to_domain()
+    @router.post("/rule/{track_id}", status_code=status.HTTP_201_CREATED)
+    async def create_rule(track_id: uuid.UUID, payload: TrackRequest) -> TrackResponse:
+        track = payload.to_domain(track_id)
         try:
             await service.create_rule(track)
         except TrackAlreadyExistsError as exc:

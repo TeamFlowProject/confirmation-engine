@@ -20,7 +20,7 @@ class MemberSchema(BaseModel):
     name: str
     surname: str
     patronymic: str
-    role_id: uuid.UUID
+    role_id: uuid.UUID | None = None
 
     @classmethod
     def from_domain(cls, member: Member) -> "MemberSchema":
@@ -110,19 +110,19 @@ def _rule_to_schema(
 
 
 class TrackRequest(BaseModel):
-    id: uuid.UUID
+    model_config = {"extra": "ignore"}
+
     name: str
-    roles: list[RoleSchema] = Field(default_factory=list)
     confirmation_rules: list[ConfirmationRuleSchema] = Field(default_factory=list)
     max_team_count: int = 0
     auto_confirm: bool = False
     grace_period_hours: int = 24
 
-    def to_domain(self) -> Track:
+    def to_domain(self, track_id: uuid.UUID) -> Track:
         return Track(
-            id=self.id,
+            id=track_id,
             name=self.name,
-            roles=[r.to_domain() for r in self.roles],
+            roles=[],
             confirmation_rules=[r.to_domain() for r in self.confirmation_rules],
             max_team_count=self.max_team_count,
             auto_confirm=self.auto_confirm,

@@ -4,6 +4,7 @@ from typing import Protocol
 from src.domain.aggregates.team_application import TeamApplication
 from src.domain.aggregates.track import Track
 from src.domain.entities.member import Member
+from src.domain.entities.role import Role
 
 
 class ConfirmationServiceProtocol(Protocol):
@@ -19,7 +20,18 @@ class ConfirmationServiceProtocol(Protocol):
 
     async def add_member(self, application_id: uuid.UUID, member: Member) -> None: ...
 
+    async def change_member_role(
+        self,
+        application_id: uuid.UUID,
+        member_id: uuid.UUID,
+        new_role_id: uuid.UUID,
+    ) -> None: ...
+
     async def create_rule(self, track: Track) -> None: ...
+
+    async def update_track_roles(
+        self, track_id: uuid.UUID, name: str, roles: list[Role]
+    ) -> None: ...
 
     async def confirm_team(self, application_id: uuid.UUID) -> None: ...
 

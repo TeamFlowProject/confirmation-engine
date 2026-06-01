@@ -39,6 +39,8 @@ class RoleConfirmationRule(ConfirmationRule):
     def check(self, team: TeamApplication, track: Track) -> str | None:
         role_map: dict[uuid.UUID, int] = {}
         for member in team.members:
+            if member.role_id is None:
+                continue
             role_map[member.role_id] = role_map.get(member.role_id, 0) + 1
 
         for role in track.roles:

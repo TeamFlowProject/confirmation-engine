@@ -17,8 +17,10 @@ COPY --from=builder /app/.venv ./.venv
 
 COPY src/ ./src/
 COPY migrations/ ./migrations/
-COPY src/main.py ./
 
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-CMD ["sh", "-c", "python -m src.main migrate && python -m src.main run"]
+ENTRYPOINT ["python", "-m", "src.main"]
+CMD ["run"]
